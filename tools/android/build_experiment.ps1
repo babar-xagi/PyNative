@@ -1,4 +1,5 @@
 param(
+    [string]$AppSpec,
     [switch]$Install,
     [switch]$Launch
 )
@@ -11,6 +12,7 @@ $PackageName = "com.pynative.experiment"
 $ActivityName = "$PackageName/.MainActivity"
 $BuildRoot = Join-Path $RepoRoot "build\android-experiment"
 $GeneratedRoot = Join-Path $BuildRoot "generated"
+$GeneratedJavaRoot = Join-Path $BuildRoot "generated-java"
 $CompiledRes = Join-Path $BuildRoot "compiled-res"
 $ClassesRoot = Join-Path $BuildRoot "classes"
 $ClassesJar = Join-Path $BuildRoot "classes.jar"
@@ -59,6 +61,106 @@ function Resolve-JavaHome {
     throw "Java JDK not found. Install Android Studio or set JAVA_HOME."
 }
 
+function Get-SpecValue($Spec, $Name, $Default) {
+    if ($Spec.PSObject.Properties.Name -contains $Name) {
+        return $Spec.$Name
+    }
+
+    return $Default
+}
+
+function ConvertTo-Array($Value) {
+    if ($null -eq $Value) {
+        return @()
+    }
+
+    if ($Value -is [System.Array]) {
+        return @($Value)
+    }
+
+    return @($Value)
+}
+
+function ConvertTo-JavaString($Value) {
+    if ($null -eq $Value) {
+        $Value = ""
+    }
+
+    $text = [string]$Value
+    $text = $text.Replace('\', '\\')
+    $text = $text.Replace('"', '\"')
+    $text = $text.Replace("`r", '\r')
+    $text = $text.Replace("`n", '\n')
+    $text = $text.Replace("`t", '\t')
+    return '"' + $text + '"'
+}
+
+function ConvertTo-JavaStringArray($Values) {
+    $items = @(ConvertTo-Array $Values | ForEach-Object { ConvertTo-JavaString $_ })
+    if ($items.Count -eq 0) {
+        return "new String[]{}"
+    }
+
+    return "new String[]{" + ($items -join ", ") + "}"
+}
+
+function Write-GeneratedAppSource($SpecPath, $Destination) {
+    if ($SpecPath) {
+        if (-not (Test-Path -LiteralPath $SpecPath)) {
+            throw "Android app spec not found: $SpecPath"
+        }
+
+        $spec = Get-Content -Raw -LiteralPath $SpecPath | ConvertFrom-Json
+    } else {
+        $spec = [pscustomobject]@{
+            title = "PyNative Android Experiment"
+            source_path = "built-in experiment"
+            texts = @("Count: 0")
+            buttons = @("Increase")
+            inputs = @("Username")
+            images = @()
+            has_python_callbacks = $false
+            node_count = 0
+            max_depth = 0
+        }
+    }
+
+    $title = ConvertTo-JavaString (Get-SpecValue $spec "title" "PyNative Android")
+    $sourcePath = ConvertTo-JavaString (Get-SpecValue $spec "source_path" "built-in experiment")
+    $texts = ConvertTo-JavaStringArray (Get-SpecValue $spec "texts" @())
+    $buttons = ConvertTo-JavaStringArray (Get-SpecValue $spec "buttons" @())
+    $inputs = ConvertTo-JavaStringArray (Get-SpecValue $spec "inputs" @())
+    $images = ConvertTo-JavaStringArray (Get-SpecValue $spec "images" @())
+    $nodeCount = [int](Get-SpecValue $spec "node_count" 0)
+    $maxDepth = [int](Get-SpecValue $spec "max_depth" 0)
+    $hasPythonCallbacks = if ([bool](Get-SpecValue $spec "has_python_callbacks" $false)) { "true" } else { "false" }
+
+    $destinationRoot = Split-Path -Parent $Destination
+    New-Item -ItemType Directory -Path $destinationRoot -Force | Out-Null
+
+    $javaSource = @"
+package com.pynative.experiment;
+
+public final class GeneratedApp {
+    public static final String TITLE = $title;
+    public static final String SOURCE_PATH = $sourcePath;
+    public static final String[] TEXTS = $texts;
+    public static final String[] BUTTON_LABELS = $buttons;
+    public static final String[] INPUT_PLACEHOLDERS = $inputs;
+    public static final String[] IMAGES = $images;
+    public static final int NODE_COUNT = $nodeCount;
+    public static final int MAX_DEPTH = $maxDepth;
+    public static final boolean HAS_PYTHON_CALLBACKS = $hasPythonCallbacks;
+
+    private GeneratedApp() {
+    }
+}
+"@
+
+    $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+    [System.IO.File]::WriteAllText($Destination, $javaSource, $utf8NoBom)
+}
+
 $AndroidSdk = Resolve-AndroidSdk
 $BuildTools = Resolve-LatestDirectory (Join-Path $AndroidSdk "build-tools")
 $Platform = Resolve-LatestDirectory (Join-Path $AndroidSdk "platforms")
@@ -83,13 +185,18 @@ foreach ($tool in @($Aapt2, $D8, $Zipalign, $Apksigner, $AndroidJar, $Javac, $Ja
 }
 
 Remove-Item -LiteralPath $BuildRoot -Recurse -Force -ErrorAction SilentlyContinue
-New-Item -ItemType Directory -Path $GeneratedRoot, $CompiledRes, $ClassesRoot, $DexRoot | Out-Null
+New-Item -ItemType Directory -Path $GeneratedRoot, $GeneratedJavaRoot, $CompiledRes, $ClassesRoot, $DexRoot | Out-Null
 Copy-Item -LiteralPath $AndroidJar -Destination $LocalAndroidJar -Force
+$GeneratedAppSource = Join-Path $GeneratedJavaRoot "com\pynative\experiment\GeneratedApp.java"
+Write-GeneratedAppSource $AppSpec $GeneratedAppSource
 
 Write-Host "Android SDK: $AndroidSdk"
 Write-Host "Build tools: $BuildTools"
 Write-Host "Platform: $Platform"
 Write-Host "Java: $JavaHome"
+if ($AppSpec) {
+    Write-Host "App spec: $AppSpec"
+}
 
 & $Aapt2 compile --dir (Join-Path $ProjectRoot "res") -o $CompiledRes
 if ($LASTEXITCODE -ne 0) { throw "aapt2 compile failed" }
@@ -109,6 +216,7 @@ if ($LASTEXITCODE -ne 0) { throw "aapt2 link failed" }
 
 $SourceFiles = @(
     Join-Path $ProjectRoot "src\com\pynative\experiment\MainActivity.java"
+    $GeneratedAppSource
 ) + @(Get-ChildItem -Path $GeneratedRoot -Recurse -Filter "*.java" | ForEach-Object { $_.FullName })
 
 & $Javac `

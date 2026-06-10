@@ -6,7 +6,7 @@ import platform
 import sys
 from pathlib import Path
 
-from pynative.android import android_environment, run_android_experiment
+from pynative.android import android_environment, build_android_app, run_android_experiment
 from pynative.project import create_project, run_desktop_app
 
 
@@ -15,6 +15,18 @@ def main() -> None:
     subcommands = parser.add_subparsers(dest="command", required=True)
     new_project = subcommands.add_parser("new", help="Create a new PyNative app project")
     new_project.add_argument("name", help="Project directory name")
+
+    build = subcommands.add_parser("build", help="Build PyNative app artifacts")
+    build_targets = build.add_subparsers(dest="artifact", required=True)
+    apk = build_targets.add_parser("apk", help="Build an Android APK")
+    apk.add_argument(
+        "target",
+        nargs="?",
+        help="App file or project directory. Defaults to the current directory when it contains app.py.",
+    )
+    apk.add_argument("--install", action="store_true", help="Install the APK after building")
+    apk.add_argument("--launch", action="store_true", help="Install and launch the APK after building")
+
     run_project = subcommands.add_parser("run", help="Run a PyNative app")
     run_project.add_argument("platform", choices=["desktop", "android"], help="Target platform")
     run_project.add_argument(
@@ -68,15 +80,26 @@ def main() -> None:
                 indent=2,
             )
         )
+    elif args.command == "build":
+        if args.artifact == "apk":
+            result = build_android_app(
+                target=Path(args.target) if args.target else None,
+                install=args.install or args.launch,
+                launch=args.launch,
+            )
+            raise SystemExit(result.returncode)
     elif args.command == "run":
         if args.platform == "desktop":
             run_desktop_app(Path(args.target) if args.target else None, summary=args.summary)
         elif args.platform == "android":
             if args.summary:
                 raise SystemExit("--summary is only supported for desktop runs")
-            if args.target:
-                raise SystemExit("Android experiment does not accept an app target yet")
-            raise SystemExit(run_android_experiment(build_only=args.build_only))
+            raise SystemExit(
+                run_android_experiment(
+                    Path(args.target) if args.target else None,
+                    build_only=args.build_only,
+                )
+            )
     elif args.command == "doctor":
         print(json.dumps(doctor(), indent=2))
     elif args.command == "hello-window":

@@ -5,6 +5,7 @@ These docs are for building the PyNative UI framework.
 ## Core Docs
 
 - [Project Overview](project-overview.md)
+- [Project Status](project-status.md)
 - [Platform Architecture](platform-architecture.md)
 - [Development Setup](development-setup.md)
 - [Declarative API and CLI](declarative-api-and-cli.md)

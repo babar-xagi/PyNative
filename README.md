@@ -1,17 +1,19 @@
 # PyNative UI
 
-PyNative UI is a Python-first declarative UI framework powered by Rust. The first build target is a Phase 0 prototype: prove the Rust/Python bridge, define the widget tree model, and prepare the project for Windows desktop and Android work.
+PyNative UI is a Python-first declarative UI framework powered by Rust. The project is currently building the Phase 1 desktop MVP while exploring the Phase 2 Android path.
 
 ## Current Status
 
-Phase 0 scaffold is in progress.
+Phase 1 desktop MVP is active, and the first Android build experiment is available.
 
 - Python package source lives in `python/pynative`.
 - PyO3 bridge lives in `src`.
 - Shared Rust runtime logic lives in `crates/pynative_core`.
-- Future Rust CLI code lives in `crates/pynative_cli`.
+- Rust CLI code lives in `crates/pynative_cli`.
 - Example apps live in `examples`.
 - Documentation lives in `doc/user` and `doc/developer`.
+- Project history lives in [CHANGELOG.md](CHANGELOG.md).
+- Current build status lives in [doc/developer/project-status.md](doc/developer/project-status.md).
 
 ## Tooling
 
@@ -102,10 +104,17 @@ Build the first Android APK experiment:
 uv run pynative run android --build-only
 ```
 
+Build an APK from a PyNative app target:
+
+```powershell
+uv run pynative run android examples\counter\app.py --build-only
+uv run pynative build apk examples\counter\app.py
+```
+
 Connect a device or start an emulator, then install and launch:
 
 ```powershell
-uv run pynative run android
+uv run pynative run android examples\counter\app.py
 ```
 
 The APK is written to:

@@ -20,6 +20,15 @@ This builds a tiny native Android APK through the installed Android SDK tools di
 
 It does not use Gradle yet and does not embed Python yet. It proves the local Android build/install path before the real Android runtime is added.
 
+The experiment can also build from a PyNative app target:
+
+```powershell
+uv run pynative run android examples\counter\app.py --build-only
+uv run pynative build apk examples\counter\app.py
+```
+
+This exports a build-time Android screen spec from the Python widget tree and generates a Java `GeneratedApp` class for the Activity.
+
 ## Deliverables
 
 - Android/Kotlin shell for lifecycle and permissions.
@@ -29,6 +38,15 @@ It does not use Gradle yet and does not embed Python yet. It proves the local An
 - Python callback from Android button click.
 - CLI command: `pynative run android`.
 - CLI command: `pynative build apk`.
+
+## Delivered In Current Experiment
+
+- Java Android shell for lifecycle and native controls.
+- Build-only and install/launch flows through `pynative run android`.
+- `pynative build apk` command.
+- Build-time widget export for `Text`, `Button`, `Input`, and `Image` placeholders.
+- Basic Android button state update inside the generated screen shell.
+- Android log diagnostics through `Log.i("PyNative", ...)`.
 
 ## Workstreams
 

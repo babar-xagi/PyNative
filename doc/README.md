@@ -19,6 +19,7 @@ Use these when you want to build apps with PyNative UI:
 Use these when you want to build the PyNative UI framework itself:
 
 - [Developer Docs Home](developer/README.md)
+- [Project Status](developer/project-status.md)
 - [Project Overview](developer/project-overview.md)
 - [Platform Architecture](developer/platform-architecture.md)
 - [Development Setup](developer/development-setup.md)

@@ -1,5 +1,5 @@
 from pynative.cli import callback_window_command, doctor, hello_window_command
-from pynative.android import android_environment
+from pynative.android import android_environment, android_spec_from_app
 from pynative.project import create_project, load_app, normalize_project_name, run_desktop_app
 
 
@@ -57,3 +57,17 @@ def test_android_environment_reports_build_script():
     env = android_environment()
 
     assert env.build_script.name == "build_experiment.ps1"
+
+
+def test_android_spec_collects_widgets(tmp_path):
+    created = create_project("android-demo", base_dir=tmp_path)
+    app = load_app(created.path)
+
+    spec = android_spec_from_app(app, source_path=created.path / "app.py")
+
+    assert spec["title"] == "Android Demo"
+    assert spec["texts"] == ["Count: 0"]
+    assert spec["buttons"] == ["Increase"]
+    assert spec["inputs"] == []
+    assert spec["has_python_callbacks"] is True
+    assert spec["node_count"] > 0

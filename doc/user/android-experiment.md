@@ -2,12 +2,24 @@
 
 PyNative UI has an early Android experiment that builds a tiny native Android APK without Gradle.
 
-This is not the final Android runtime yet. It proves that the local Android SDK can build, sign, install, and launch a simple native Android shell.
+This is not the final Android runtime yet. It proves that the local Android SDK can build, sign, install, launch, and render a build-time projection of a PyNative app.
 
 ## Build APK
 
 ```powershell
 uv run pynative run android --build-only
+```
+
+Build from a PyNative app file:
+
+```powershell
+uv run pynative run android examples\counter\app.py --build-only
+```
+
+Or use the dedicated build command:
+
+```powershell
+uv run pynative build apk examples\counter\app.py
 ```
 
 Output:
@@ -21,7 +33,7 @@ build\android-experiment\pynative-android-debug.apk
 Connect an Android device with USB debugging enabled, or start an Android emulator, then run:
 
 ```powershell
-uv run pynative run android
+uv run pynative run android examples\counter\app.py
 ```
 
 This builds the APK, installs it with `adb install -r`, and launches:
@@ -35,6 +47,7 @@ com.pynative.experiment/.MainActivity
 - Uses a Java Activity for the experiment.
 - Does not embed Python yet.
 - Does not use the Rust runtime on Android yet.
-- Does not render the Python widget tree yet.
+- Renders a build-time export of the Python widget tree, not a live Python runtime.
+- Android button taps update local Android state, but Python callbacks do not run on-device yet.
 
 Those are the next Phase 2 steps.

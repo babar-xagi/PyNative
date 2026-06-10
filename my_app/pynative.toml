@@ -1,0 +1,20 @@
+[app]
+name = "My App"
+package = "com.pynative.myapp"
+version = "0.1.0"
+
+[python]
+mode = "on_device"
+version = "3.12"
+requirements = "requirements.txt"
+
+[platforms]
+windows = true
+android = false
+linux = false
+macos = false
+ios = false
+
+[backend]
+enabled = false
+mode = "remote"
