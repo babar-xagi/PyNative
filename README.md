@@ -14,6 +14,7 @@ Phase 1 desktop MVP is active, and the first Android build experiment is availab
 - Documentation lives in `doc/user` and `doc/developer`.
 - Project history lives in [CHANGELOG.md](CHANGELOG.md).
 - Current build status lives in [doc/developer/project-status.md](doc/developer/project-status.md).
+- Example app catalog lives in [examples/README.md](examples/README.md).
 
 ## Tooling
 
@@ -76,6 +77,22 @@ For a non-GUI smoke check:
 ```powershell
 uv run python -c "from examples.counter.app import app; app.run('summary')"
 uv run pynative run desktop examples\counter\app.py --summary
+```
+
+## Example Apps
+
+The `examples` folder includes counter, login, todo, calculator, contact form, gallery, settings, quiz, and dashboard demos.
+
+Run any example on desktop:
+
+```powershell
+uv run pynative run desktop examples\todo\app.py
+```
+
+Build any example as an Android APK:
+
+```powershell
+uv run pynative build apk examples\todo\app.py
 ```
 
 ## Phase 0.1 Native Window Prototype

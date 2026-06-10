@@ -33,7 +33,8 @@ The project now has a working Python package, Rust/PyO3 bridge, basic Windows na
 - Added `pynative new my_app` project generation.
 - Added `pynative run desktop` with app-file and project-folder support.
 - Added `--summary` mode for non-GUI smoke checks.
-- Added counter and login examples.
+- Added counter, login, todo, calculator, contact form, gallery, settings panel, quiz, and dashboard examples.
+- Added tests that load every example and export Android screen specs.
 
 ### Android Experiment
 

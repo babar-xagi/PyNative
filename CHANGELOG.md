@@ -26,6 +26,8 @@ All notable project changes are tracked here so each phase has a clear history.
 - Added Android app-target builds so `pynative run android examples\counter\app.py --build-only` exports a PyNative widget tree into the Android experiment.
 - Added `pynative build apk` for the Phase 2 Android APK build flow.
 - Added generated Android screen metadata for text, buttons, inputs, image placeholders, node count, and source path.
+- Added example apps for todo, calculator, contact form, gallery, settings panel, quiz, and dashboard workflows.
+- Added automated tests that load every example and export Android specs for each one.
 
 ## 0.1.0 - 2026-06-10
 
