@@ -1,0 +1,40 @@
+[build-system]
+requires = ["maturin>=1.13,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "pynative-ui"
+version = "0.1.0"
+description = "A Python-first declarative UI framework powered by Rust"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT OR Apache-2.0"
+authors = [
+    { name = "Muhammad Babar" }
+]
+keywords = ["python", "rust", "pyo3", "ui", "desktop", "mobile"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Rust",
+    "Topic :: Software Development :: User Interfaces",
+]
+dependencies = []
+
+[project.scripts]
+pynative = "pynative.cli:main"
+
+[dependency-groups]
+dev = [
+    "maturin>=1.13,<2.0",
+    "pytest>=8.0",
+]
+
+[tool.maturin]
+python-source = "python"
+module-name = "pynative._native"
+features = ["extension-module"]
+
+[tool.pytest.ini_options]
+pythonpath = ["python"]
+testpaths = ["tests"]

@@ -1,0 +1,46 @@
+[package]
+name = "pynative-native"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "PyO3 bridge for PyNative UI"
+publish = false
+
+[lib]
+name = "pynative_native"
+crate-type = ["cdylib", "rlib"]
+
+[workspace]
+resolver = "3"
+members = [
+    "crates/pynative_core",
+    "crates/pynative_cli",
+    "crates/pynative_platform_windows",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+authors = ["Muhammad Babar"]
+
+[workspace.dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+pynative_core = { path = "crates/pynative_core" }
+pynative_platform_windows = { path = "crates/pynative_platform_windows" }
+pyo3 = "0.28.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+windows-sys = "0.61.2"
+
+[dependencies]
+pynative_core = { workspace = true }
+pynative_platform_windows = { workspace = true }
+pyo3 = { workspace = true }
+serde_json = { workspace = true }
+
+[features]
+default = []
+extension-module = ["pyo3/extension-module"]

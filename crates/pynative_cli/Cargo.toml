@@ -1,0 +1,18 @@
+[package]
+name = "pynative_cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Future native CLI for PyNative UI"
+publish = false
+
+[[bin]]
+name = "pynative-native-cli"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true }
+pynative_core = { workspace = true }
+serde_json = { workspace = true }

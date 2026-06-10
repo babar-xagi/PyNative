@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+.uv-cache/
+*.egg-info/
+
+# Rust
+/target/
+
+# maturin build outputs
+/wheels/
+python/pynative/*.pyd
+python/pynative/*.so
+python/pynative/*.dylib
+python/pynative/*.pdb
+
+# Project output
+/build/
+/dist/
+
+# Editors
+.idea/
+.vscode/
+*.swp

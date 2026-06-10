@@ -1,0 +1,12 @@
+[package]
+name = "pynative_core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Core runtime primitives for PyNative UI"
+publish = false
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
