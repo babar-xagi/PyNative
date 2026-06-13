@@ -113,16 +113,21 @@ mod windows_impl {
         HelloWindowConfig, HelloWindowResult, WidgetEvent, WidgetNode, WidgetWindowResult,
     };
     use windows_sys::Win32::Foundation::{
-        ERROR_CLASS_ALREADY_EXISTS, GetLastError, HWND, LPARAM, LRESULT, WPARAM,
+        ERROR_CLASS_ALREADY_EXISTS, GetLastError, HWND, LPARAM, LRESULT, RECT, WPARAM,
     };
-    use windows_sys::Win32::Graphics::Gdi::{DEFAULT_GUI_FONT, GetStockObject};
+    use windows_sys::Win32::Graphics::Gdi::{
+        CLIP_DEFAULT_PRECIS, CreateFontW, CreateSolidBrush, DEFAULT_CHARSET, DEFAULT_GUI_FONT,
+        DEFAULT_PITCH, DEFAULT_QUALITY, DeleteObject, FW_BOLD, FW_NORMAL, FillRect, GetStockObject,
+        HBRUSH, HDC, HFONT, OUT_DEFAULT_PRECIS, SetBkColor, SetBkMode, SetTextColor, TRANSPARENT,
+    };
     use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
     use windows_sys::Win32::UI::WindowsAndMessaging::{
         CS_HREDRAW, CS_VREDRAW, CW_USEDEFAULT, CreateWindowExW, DefWindowProcW, DestroyWindow,
-        DispatchMessageW, EN_CHANGE, ES_AUTOHSCROLL, GetMessageW, GetWindowTextLengthW,
-        GetWindowTextW, HMENU, IDC_ARROW, LoadCursorW, MSG, PostQuitMessage, RegisterClassW,
-        SendMessageW, SetWindowTextW, TranslateMessage, WINDOW_EX_STYLE, WM_COMMAND, WM_CREATE,
-        WM_DESTROY, WM_SETFONT, WNDCLASSW, WS_BORDER, WS_CHILD, WS_OVERLAPPEDWINDOW, WS_VISIBLE,
+        DispatchMessageW, EN_CHANGE, ES_AUTOHSCROLL, GetClientRect, GetMessageW,
+        GetWindowTextLengthW, GetWindowTextW, HMENU, IDC_ARROW, LoadCursorW, MSG, PostQuitMessage,
+        RegisterClassW, SendMessageW, SetWindowTextW, TranslateMessage, WINDOW_EX_STYLE,
+        WM_COMMAND, WM_CREATE, WM_CTLCOLORBTN, WM_CTLCOLOREDIT, WM_CTLCOLORSTATIC, WM_DESTROY,
+        WM_ERASEBKGND, WM_SETFONT, WNDCLASSW, WS_BORDER, WS_CHILD, WS_OVERLAPPEDWINDOW, WS_VISIBLE,
     };
 
     const BUTTON_ID: usize = 1001;
@@ -142,15 +147,34 @@ mod windows_impl {
     type ClickCallback = Box<dyn FnMut(usize) -> Result<(), String>>;
     type WidgetEventCallback = Box<dyn FnMut(WidgetEvent) -> Result<Option<WidgetNode>, String>>;
 
+    #[derive(Debug, Clone, Default)]
+    struct RenderedStyle {
+        color: Option<u32>,
+        background_color: Option<u32>,
+        font_size: Option<i32>,
+        font_weight: Option<String>,
+        width: Option<i32>,
+        height: Option<i32>,
+        padding: i32,
+        margin: i32,
+        gap: Option<i32>,
+        align: Option<String>,
+        background_brush: HBRUSH,
+    }
+
     #[derive(Default)]
     struct WidgetRenderState {
         root: Option<WidgetNode>,
         controls: Vec<HWND>,
+        fonts: Vec<HFONT>,
+        brushes: Vec<HBRUSH>,
+        control_styles: HashMap<isize, RenderedStyle>,
         button_callbacks: HashMap<usize, u64>,
         input_callbacks: HashMap<usize, u64>,
         next_control_id: usize,
         root_hwnd: HWND,
         hinstance: *mut core::ffi::c_void,
+        window_background_brush: HBRUSH,
     }
 
     thread_local! {
@@ -159,11 +183,15 @@ mod windows_impl {
         static WIDGET_RENDER_STATE: RefCell<WidgetRenderState> = RefCell::new(WidgetRenderState {
             root: None,
             controls: Vec::new(),
+            fonts: Vec::new(),
+            brushes: Vec::new(),
+            control_styles: HashMap::new(),
             button_callbacks: HashMap::new(),
             input_callbacks: HashMap::new(),
             next_control_id: FIRST_WIDGET_CONTROL_ID,
             root_hwnd: null_mut(),
             hinstance: null_mut(),
+            window_background_brush: null_mut(),
         });
         static CALLBACK_ERROR: RefCell<Option<String>> = const { RefCell::new(None) };
     }
@@ -348,6 +376,20 @@ mod windows_impl {
     ) -> LRESULT {
         match message {
             WM_CREATE => 0,
+            WM_ERASEBKGND => {
+                if paint_window_background(hwnd, wparam as HDC) {
+                    1
+                } else {
+                    unsafe { DefWindowProcW(hwnd, message, wparam, lparam) }
+                }
+            }
+            WM_CTLCOLORSTATIC | WM_CTLCOLOREDIT | WM_CTLCOLORBTN => {
+                if let Some(result) = apply_control_style(lparam as HWND, wparam as HDC) {
+                    result
+                } else {
+                    unsafe { DefWindowProcW(hwnd, message, wparam, lparam) }
+                }
+            }
             WM_COMMAND => {
                 let control_id = wparam & 0xffff;
                 let notification_code = (wparam >> 16) & 0xffff;
@@ -567,9 +609,15 @@ mod windows_impl {
         let content = window
             .map(|window| window.children.as_slice())
             .unwrap_or(&root.children);
-        let mut y = CONTENT_Y;
+        let window_style = window.map(node_style).unwrap_or_default();
+        set_window_background(window_style.background_color);
+
+        let content_padding = window_style.padding;
+        let content_x = CONTENT_X + content_padding;
+        let content_width = (CONTENT_WIDTH - content_padding * 2).max(120);
+        let mut y = CONTENT_Y + content_padding;
         for child in content {
-            y += render_node(hwnd, hinstance, child, CONTENT_X, y, CONTENT_WIDTH)?;
+            y += render_node(hwnd, hinstance, child, content_x, y, content_width)?;
             y += ROW_GAP;
         }
 
@@ -580,9 +628,11 @@ mod windows_impl {
         let controls = WIDGET_RENDER_STATE.with(|state| {
             let mut state = state.borrow_mut();
             let controls = std::mem::take(&mut state.controls);
+            state.control_styles.clear();
             state.button_callbacks.clear();
             state.input_callbacks.clear();
             state.next_control_id = FIRST_WIDGET_CONTROL_ID;
+            state.clear_graphics_resources();
             controls
         });
 
@@ -602,21 +652,12 @@ mod windows_impl {
         width: i32,
     ) -> Result<i32, String> {
         match node.kind.as_str() {
-            "App" | "Window" | "Column" => {
-                render_column(parent, hinstance, &node.children, x, y, width)
-            }
-            "Row" => render_row(parent, hinstance, &node.children, x, y, width),
-            "Text" => create_static(
-                parent,
-                hinstance,
-                x,
-                y,
-                width,
-                &prop_string(node, "value", ""),
-            ),
+            "App" | "Window" | "Column" => render_column(parent, hinstance, node, x, y, width),
+            "Row" => render_row(parent, hinstance, node, x, y, width),
+            "Text" => create_static(parent, hinstance, x, y, width, node),
             "Button" => create_button(parent, hinstance, x, y, width, node),
             "Input" => create_input(parent, hinstance, x, y, width, node),
-            other => create_static(
+            other => create_static_text(
                 parent,
                 hinstance,
                 x,
@@ -630,44 +671,60 @@ mod windows_impl {
     fn render_column(
         parent: HWND,
         hinstance: *mut core::ffi::c_void,
-        children: &[WidgetNode],
+        node: &WidgetNode,
         x: i32,
         mut y: i32,
         width: i32,
     ) -> Result<i32, String> {
+        let style = node_style(node);
+        let margin = style.margin;
+        let padding = style.padding;
+        let gap = style.gap.unwrap_or(ROW_GAP);
         let start_y = y;
-        for child in children {
-            y += render_node(parent, hinstance, child, x, y, width)?;
-            y += ROW_GAP;
+        let child_x = x + margin + padding;
+        y += margin + padding;
+        let child_width = style.width.unwrap_or(width) - (margin + padding) * 2;
+        let child_width = child_width.max(80);
+
+        for child in &node.children {
+            y += render_node(parent, hinstance, child, child_x, y, child_width)?;
+            y += gap;
         }
 
-        Ok((y - start_y).max(1))
+        Ok((y - start_y + padding + margin).max(1))
     }
 
     fn render_row(
         parent: HWND,
         hinstance: *mut core::ffi::c_void,
-        children: &[WidgetNode],
+        node: &WidgetNode,
         x: i32,
         y: i32,
         width: i32,
     ) -> Result<i32, String> {
-        if children.is_empty() {
+        if node.children.is_empty() {
             return Ok(1);
         }
 
-        let gap = ROW_GAP;
-        let cell_width =
-            ((width - gap * (children.len() as i32 - 1)) / children.len() as i32).max(80);
+        let style = node_style(node);
+        let margin = style.margin;
+        let padding = style.padding;
+        let gap = style.gap.unwrap_or(ROW_GAP);
+        let available_width = style.width.unwrap_or(width) - (margin + padding) * 2;
+        let row_x = x + margin + padding;
+        let row_y = y + margin + padding;
+        let cell_width = ((available_width - gap * (node.children.len() as i32 - 1))
+            / node.children.len() as i32)
+            .max(80);
         let mut max_height = 1;
 
-        for (index, child) in children.iter().enumerate() {
-            let child_x = x + index as i32 * (cell_width + gap);
-            let height = render_node(parent, hinstance, child, child_x, y, cell_width)?;
+        for (index, child) in node.children.iter().enumerate() {
+            let child_x = row_x + index as i32 * (cell_width + gap);
+            let height = render_node(parent, hinstance, child, child_x, row_y, cell_width)?;
             max_height = max_height.max(height);
         }
 
-        Ok(max_height)
+        Ok(max_height + (margin + padding) * 2)
     }
 
     fn create_static(
@@ -676,8 +733,42 @@ mod windows_impl {
         x: i32,
         y: i32,
         width: i32,
+        node: &WidgetNode,
+    ) -> Result<i32, String> {
+        let style = node_style(node);
+        let text = prop_string(node, "value", "");
+        let font_size = style.font_size.unwrap_or(14);
+        let control_width = style.width.unwrap_or(width).min(width).max(80);
+        let control_height = style.height.unwrap_or((font_size + 16).max(28));
+        let control_x = aligned_x(x + style.margin, width, control_width, &style);
+        let control_y = y + style.margin;
+        let margin = style.margin;
+        let hwnd = create_control(
+            "STATIC",
+            &text,
+            WS_CHILD | WS_VISIBLE,
+            parent,
+            hinstance,
+            0,
+            control_x,
+            control_y,
+            control_width,
+            control_height,
+        )?;
+        set_widget_font(hwnd, &style);
+        remember_control(hwnd, style);
+        Ok(control_height + margin * 2)
+    }
+
+    fn create_static_text(
+        parent: HWND,
+        hinstance: *mut core::ffi::c_void,
+        x: i32,
+        y: i32,
+        width: i32,
         text: &str,
     ) -> Result<i32, String> {
+        let style = RenderedStyle::default();
         let hwnd = create_control(
             "STATIC",
             text,
@@ -690,8 +781,8 @@ mod windows_impl {
             width,
             28,
         )?;
-        set_default_font(hwnd);
-        remember_control(hwnd);
+        set_widget_font(hwnd, &style);
+        remember_control(hwnd, style);
         Ok(28)
     }
 
@@ -703,8 +794,13 @@ mod windows_impl {
         width: i32,
         node: &WidgetNode,
     ) -> Result<i32, String> {
+        let style = node_style(node);
         let control_id = next_widget_control_id();
         let label = prop_string(node, "label", "Button");
+        let control_width = style.width.unwrap_or(width.min(220)).min(width).max(80);
+        let control_height = style.height.unwrap_or(36).max(28);
+        let control_x = aligned_x(x + style.margin, width, control_width, &style);
+        let control_y = y + style.margin;
         let hwnd = create_control(
             "BUTTON",
             &label,
@@ -712,13 +808,13 @@ mod windows_impl {
             parent,
             hinstance,
             control_id,
-            x,
-            y,
-            width.min(220),
-            36,
+            control_x,
+            control_y,
+            control_width,
+            control_height,
         )?;
-        set_default_font(hwnd);
-        remember_control(hwnd);
+        set_widget_font(hwnd, &style);
+        remember_control(hwnd, style);
 
         if let Some(callback_id) = prop_u64(node, "callback_id") {
             WIDGET_RENDER_STATE.with(|state| {
@@ -729,7 +825,7 @@ mod windows_impl {
             });
         }
 
-        Ok(36)
+        Ok(control_height + node_style(node).margin * 2)
     }
 
     fn create_input(
@@ -740,10 +836,15 @@ mod windows_impl {
         width: i32,
         node: &WidgetNode,
     ) -> Result<i32, String> {
+        let style = node_style(node);
         let value = prop_string(node, "value", "");
         let placeholder = prop_string(node, "placeholder", "");
         let text = if value.is_empty() { placeholder } else { value };
         let control_id = next_widget_control_id();
+        let control_width = style.width.unwrap_or(width.min(320)).min(width).max(80);
+        let control_height = style.height.unwrap_or(30).max(24);
+        let control_x = aligned_x(x + style.margin, width, control_width, &style);
+        let control_y = y + style.margin;
         let hwnd = create_control(
             "EDIT",
             &text,
@@ -751,13 +852,13 @@ mod windows_impl {
             parent,
             hinstance,
             control_id,
-            x,
-            y,
-            width.min(320),
-            30,
+            control_x,
+            control_y,
+            control_width,
+            control_height,
         )?;
-        set_default_font(hwnd);
-        remember_control(hwnd);
+        set_widget_font(hwnd, &style);
+        remember_control(hwnd, style);
 
         if let Some(callback_id) = prop_u64(node, "state_id") {
             WIDGET_RENDER_STATE.with(|state| {
@@ -768,7 +869,7 @@ mod windows_impl {
             });
         }
 
-        Ok(30)
+        Ok(control_height + node_style(node).margin * 2)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -810,9 +911,23 @@ mod windows_impl {
         Ok(hwnd)
     }
 
-    fn remember_control(hwnd: HWND) {
+    fn remember_control(hwnd: HWND, mut style: RenderedStyle) {
+        if let Some(background_color) = style.background_color {
+            let brush = unsafe { CreateSolidBrush(background_color) };
+            if !brush.is_null() {
+                style.background_brush = brush;
+                WIDGET_RENDER_STATE.with(|state| {
+                    state.borrow_mut().brushes.push(brush);
+                });
+            }
+        }
+
         WIDGET_RENDER_STATE.with(|state| {
-            state.borrow_mut().controls.push(hwnd);
+            let mut state = state.borrow_mut();
+            state.controls.push(hwnd);
+            if style.has_visual_style() {
+                state.control_styles.insert(hwnd as isize, style);
+            }
         });
     }
 
@@ -834,15 +949,243 @@ mod windows_impl {
         }
     }
 
+    fn set_widget_font(hwnd: HWND, style: &RenderedStyle) {
+        if style.font_size.is_none() && style.font_weight.as_deref() != Some("bold") {
+            set_default_font(hwnd);
+            return;
+        }
+
+        let face_name = wide("Segoe UI");
+        let font_height = -style.font_size.unwrap_or(14);
+        let weight = if style.font_weight.as_deref() == Some("bold") {
+            FW_BOLD
+        } else {
+            FW_NORMAL
+        };
+
+        let font = unsafe {
+            CreateFontW(
+                font_height,
+                0,
+                0,
+                0,
+                weight as i32,
+                0,
+                0,
+                0,
+                DEFAULT_CHARSET.into(),
+                OUT_DEFAULT_PRECIS.into(),
+                CLIP_DEFAULT_PRECIS.into(),
+                DEFAULT_QUALITY.into(),
+                DEFAULT_PITCH.into(),
+                face_name.as_ptr(),
+            )
+        };
+
+        if font.is_null() {
+            set_default_font(hwnd);
+            return;
+        }
+
+        unsafe {
+            SendMessageW(hwnd, WM_SETFONT, font as WPARAM, 1);
+        }
+        WIDGET_RENDER_STATE.with(|state| {
+            state.borrow_mut().fonts.push(font);
+        });
+    }
+
+    impl RenderedStyle {
+        fn has_visual_style(&self) -> bool {
+            self.color.is_some()
+                || self.background_color.is_some()
+                || self.font_size.is_some()
+                || self.font_weight.is_some()
+                || !self.background_brush.is_null()
+        }
+    }
+
+    fn node_style(node: &WidgetNode) -> RenderedStyle {
+        RenderedStyle {
+            color: style_string(node, "color").and_then(|value| parse_color(&value)),
+            background_color: style_string(node, "background_color")
+                .and_then(|value| parse_color(&value)),
+            font_size: style_i32(node, "font_size"),
+            font_weight: style_string(node, "font_weight").map(|value| value.to_lowercase()),
+            width: style_i32(node, "width"),
+            height: style_i32(node, "height"),
+            padding: style_i32(node, "padding").unwrap_or(0).max(0),
+            margin: style_i32(node, "margin").unwrap_or(0).max(0),
+            gap: style_i32(node, "gap"),
+            align: style_string(node, "align").map(|value| value.to_lowercase()),
+            background_brush: null_mut(),
+        }
+    }
+
+    fn style_string(node: &WidgetNode, key: &str) -> Option<String> {
+        node.props
+            .get("style")
+            .and_then(|style| style.get(key))
+            .and_then(|value| {
+                if let Some(value) = value.as_str() {
+                    Some(value.to_string())
+                } else {
+                    value.as_i64().map(|value| value.to_string())
+                }
+            })
+    }
+
+    fn style_i32(node: &WidgetNode, key: &str) -> Option<i32> {
+        node.props
+            .get("style")
+            .and_then(|style| style.get(key))
+            .and_then(|value| {
+                value
+                    .as_i64()
+                    .or_else(|| value.as_str().and_then(|value| value.parse::<i64>().ok()))
+            })
+            .map(|value| value as i32)
+    }
+
+    fn parse_color(value: &str) -> Option<u32> {
+        let value = value.trim();
+        let hex = match value.strip_prefix('#') {
+            Some(hex) if hex.len() == 6 => hex.to_string(),
+            Some(hex) if hex.len() == 3 => hex
+                .chars()
+                .flat_map(|character| [character, character])
+                .collect(),
+            _ => match value.to_lowercase().as_str() {
+                "black" => "000000".to_string(),
+                "white" => "ffffff".to_string(),
+                "red" => "ef4444".to_string(),
+                "green" => "22c55e".to_string(),
+                "blue" => "3b82f6".to_string(),
+                "gray" | "grey" => "64748b".to_string(),
+                "transparent" => return None,
+                _ => return None,
+            },
+        };
+
+        let red = u32::from_str_radix(&hex[0..2], 16).ok()?;
+        let green = u32::from_str_radix(&hex[2..4], 16).ok()?;
+        let blue = u32::from_str_radix(&hex[4..6], 16).ok()?;
+        Some(red | (green << 8) | (blue << 16))
+    }
+
+    fn aligned_x(x: i32, width: i32, control_width: i32, style: &RenderedStyle) -> i32 {
+        match style.align.as_deref() {
+            Some("center") => x + ((width - control_width) / 2).max(0),
+            Some("end") | Some("right") => x + (width - control_width).max(0),
+            _ => x,
+        }
+    }
+
+    fn set_window_background(color: Option<u32>) {
+        WIDGET_RENDER_STATE.with(|state| {
+            let mut state = state.borrow_mut();
+            if !state.window_background_brush.is_null() {
+                unsafe {
+                    DeleteObject(state.window_background_brush);
+                }
+                state.window_background_brush = null_mut();
+            }
+
+            if let Some(color) = color {
+                let brush = unsafe { CreateSolidBrush(color) };
+                if !brush.is_null() {
+                    state.window_background_brush = brush;
+                }
+            }
+        });
+    }
+
+    fn paint_window_background(hwnd: HWND, hdc: HDC) -> bool {
+        let brush = WIDGET_RENDER_STATE.with(|state| state.borrow().window_background_brush);
+        if brush.is_null() {
+            return false;
+        }
+
+        let mut rect = RECT::default();
+        let got_rect = unsafe { GetClientRect(hwnd, &mut rect) };
+        if got_rect == 0 {
+            return false;
+        }
+
+        unsafe {
+            FillRect(hdc, &rect, brush);
+        }
+        true
+    }
+
+    fn apply_control_style(hwnd: HWND, hdc: HDC) -> Option<LRESULT> {
+        let style = WIDGET_RENDER_STATE
+            .with(|state| state.borrow().control_styles.get(&(hwnd as isize)).cloned())?;
+
+        if let Some(color) = style.color {
+            unsafe {
+                SetTextColor(hdc, color);
+            }
+        }
+
+        if let Some(background_color) = style.background_color {
+            unsafe {
+                SetBkColor(hdc, background_color);
+            }
+        } else {
+            unsafe {
+                SetBkMode(hdc, TRANSPARENT as i32);
+            }
+        }
+
+        if !style.background_brush.is_null() {
+            return Some(style.background_brush as LRESULT);
+        }
+
+        let window_brush = WIDGET_RENDER_STATE.with(|state| state.borrow().window_background_brush);
+        if !window_brush.is_null() {
+            return Some(window_brush as LRESULT);
+        }
+
+        None
+    }
+
     impl WidgetRenderState {
         fn clear(&mut self) {
             self.root = None;
             self.controls.clear();
+            self.control_styles.clear();
             self.button_callbacks.clear();
             self.input_callbacks.clear();
             self.next_control_id = FIRST_WIDGET_CONTROL_ID;
             self.root_hwnd = null_mut();
             self.hinstance = null_mut();
+            self.clear_graphics_resources();
+        }
+
+        fn clear_graphics_resources(&mut self) {
+            for font in self.fonts.drain(..) {
+                if !font.is_null() {
+                    unsafe {
+                        DeleteObject(font);
+                    }
+                }
+            }
+
+            for brush in self.brushes.drain(..) {
+                if !brush.is_null() {
+                    unsafe {
+                        DeleteObject(brush);
+                    }
+                }
+            }
+
+            if !self.window_background_brush.is_null() {
+                unsafe {
+                    DeleteObject(self.window_background_brush);
+                }
+                self.window_background_brush = null_mut();
+            }
         }
     }
 

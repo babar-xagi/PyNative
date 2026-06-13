@@ -5,6 +5,7 @@ These docs are for developers who want to build apps with PyNative UI once the f
 ## Guides
 
 - [Getting Started](getting-started.md)
+- [Design And Style](design-and-style.md)
 - [Android Experiment](android-experiment.md)
 - [First Counter App](first-counter-app.md)
 - [Project Configuration](project-configuration.md)
@@ -13,4 +14,4 @@ These docs are for developers who want to build apps with PyNative UI once the f
 
 ## Current Status
 
-PyNative UI is currently in Phase 0. The user API exists as an early scaffold, but native windows and Android apps are not ready yet.
+PyNative UI is currently in the desktop MVP phase with an Android APK experiment. Windows desktop apps can render basic widgets, state, events, and first-pass styles. Android can build and launch a generated native shell from a PyNative app target.

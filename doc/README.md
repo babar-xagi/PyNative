@@ -8,6 +8,7 @@ Use these when you want to build apps with PyNative UI:
 
 - [User Docs Home](user/README.md)
 - [Getting Started](user/getting-started.md)
+- [Design And Style](user/design-and-style.md)
 - [Android Experiment](user/android-experiment.md)
 - [First Counter App](user/first-counter-app.md)
 - [Project Configuration](user/project-configuration.md)

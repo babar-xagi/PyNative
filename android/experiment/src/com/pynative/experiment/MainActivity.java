@@ -2,6 +2,7 @@ package com.pynative.experiment;
 
 import android.app.Activity;
 import android.graphics.Color;
+import android.graphics.Typeface;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Gravity;
@@ -14,6 +15,18 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class MainActivity extends Activity {
+    private static final int ELEMENT_KIND = 0;
+    private static final int ELEMENT_VALUE = 1;
+    private static final int ELEMENT_COLOR = 2;
+    private static final int ELEMENT_BACKGROUND_COLOR = 3;
+    private static final int ELEMENT_FONT_SIZE = 4;
+    private static final int ELEMENT_FONT_WEIGHT = 5;
+    private static final int ELEMENT_WIDTH = 6;
+    private static final int ELEMENT_HEIGHT = 7;
+    private static final int ELEMENT_PADDING = 8;
+    private static final int ELEMENT_MARGIN = 9;
+    private static final int ELEMENT_ALIGN = 10;
+
     private int count = 0;
     private TextView statusText;
     private final List<TextView> textViews = new ArrayList<>();
@@ -26,8 +39,12 @@ public class MainActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setGravity(Gravity.CENTER_HORIZONTAL);
-        root.setPadding(40, 56, 40, 40);
-        root.setBackgroundColor(Color.rgb(248, 250, 252));
+        int rootPadding = dp(GeneratedApp.ROOT_PADDING);
+        root.setPadding(rootPadding, rootPadding + dp(16), rootPadding, rootPadding);
+        root.setBackgroundColor(parseColorOr(
+                GeneratedApp.ROOT_BACKGROUND_COLOR,
+                Color.rgb(248, 250, 252)
+        ));
 
         TextView title = new TextView(this);
         title.setText(GeneratedApp.TITLE);
@@ -42,31 +59,7 @@ public class MainActivity extends Activity {
         subtitle.setPadding(0, 8, 0, 28);
         root.addView(subtitle, matchWrap());
 
-        for (String text : GeneratedApp.TEXTS) {
-            TextView textView = new TextView(this);
-            textView.setText(text);
-            textView.setTextSize(18);
-            textView.setTextColor(Color.rgb(15, 23, 42));
-            textView.setPadding(0, 6, 0, 12);
-            textViews.add(textView);
-            root.addView(textView, matchWrap());
-        }
-
-        for (String image : GeneratedApp.IMAGES) {
-            TextView imageView = new TextView(this);
-            imageView.setText("Image: " + image);
-            imageView.setTextSize(16);
-            imageView.setTextColor(Color.rgb(71, 85, 105));
-            root.addView(imageView, matchWrap());
-        }
-
-        for (String placeholder : GeneratedApp.INPUT_PLACEHOLDERS) {
-            EditText input = new EditText(this);
-            input.setHint(placeholder);
-            input.setSingleLine(true);
-            inputViews.add(input);
-            root.addView(input, matchWrap());
-        }
+        renderGeneratedElements(root);
 
         statusText = new TextView(this);
         statusText.setText("Android screen loaded. Nodes: " + GeneratedApp.NODE_COUNT);
@@ -83,16 +76,42 @@ public class MainActivity extends Activity {
             root.addView(empty, matchWrap());
         }
 
-        for (String label : GeneratedApp.BUTTON_LABELS) {
-            Button button = new Button(this);
-            button.setText(label);
-            button.setOnClickListener(view -> handleButtonClick(label));
-            root.addView(button, matchWrap());
-        }
-
         Log.i("PyNative", "Loaded Android screen from " + GeneratedApp.SOURCE_PATH);
 
         setContentView(root);
+    }
+
+    private void renderGeneratedElements(LinearLayout root) {
+        for (String[] element : GeneratedApp.ELEMENTS) {
+            String kind = elementValue(element, ELEMENT_KIND);
+            String value = elementValue(element, ELEMENT_VALUE);
+
+            if ("Text".equals(kind)) {
+                TextView textView = new TextView(this);
+                textView.setText(value);
+                applyTextStyle(textView, element, 18, Color.rgb(15, 23, 42));
+                textViews.add(textView);
+                root.addView(textView, paramsFor(element));
+            } else if ("Input".equals(kind)) {
+                EditText input = new EditText(this);
+                input.setHint(value);
+                input.setSingleLine(true);
+                applyTextStyle(input, element, 16, Color.rgb(15, 23, 42));
+                inputViews.add(input);
+                root.addView(input, paramsFor(element));
+            } else if ("Button".equals(kind)) {
+                Button button = new Button(this);
+                button.setText(value);
+                applyTextStyle(button, element, 16, Color.rgb(15, 23, 42));
+                button.setOnClickListener(view -> handleButtonClick(value));
+                root.addView(button, paramsFor(element));
+            } else if ("Image".equals(kind)) {
+                TextView imageView = new TextView(this);
+                imageView.setText("Image: " + value);
+                applyTextStyle(imageView, element, 16, Color.rgb(71, 85, 105));
+                root.addView(imageView, paramsFor(element));
+            }
+        }
     }
 
     private void handleButtonClick(String label) {
@@ -131,5 +150,92 @@ public class MainActivity extends Activity {
         );
         params.setMargins(0, 0, 0, 12);
         return params;
+    }
+
+    private LinearLayout.LayoutParams paramsFor(String[] element) {
+        int width = intOr(elementValue(element, ELEMENT_WIDTH), ViewGroup.LayoutParams.MATCH_PARENT);
+        int height = intOr(elementValue(element, ELEMENT_HEIGHT), ViewGroup.LayoutParams.WRAP_CONTENT);
+
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                width > 0 ? dp(width) : width,
+                height > 0 ? dp(height) : height
+        );
+
+        int margin = dp(intOr(elementValue(element, ELEMENT_MARGIN), 0));
+        params.setMargins(0, margin, 0, margin + dp(12));
+
+        String align = elementValue(element, ELEMENT_ALIGN);
+        if ("center".equalsIgnoreCase(align)) {
+            params.gravity = Gravity.CENTER_HORIZONTAL;
+        } else if ("end".equalsIgnoreCase(align) || "right".equalsIgnoreCase(align)) {
+            params.gravity = Gravity.END;
+        }
+
+        return params;
+    }
+
+    private void applyTextStyle(TextView view, String[] element, int defaultSize, int defaultColor) {
+        view.setTextColor(parseColorOr(elementValue(element, ELEMENT_COLOR), defaultColor));
+
+        String backgroundColor = elementValue(element, ELEMENT_BACKGROUND_COLOR);
+        if (!backgroundColor.isEmpty()) {
+            view.setBackgroundColor(parseColorOr(backgroundColor, Color.TRANSPARENT));
+        }
+
+        view.setTextSize(intOr(elementValue(element, ELEMENT_FONT_SIZE), defaultSize));
+
+        if ("bold".equalsIgnoreCase(elementValue(element, ELEMENT_FONT_WEIGHT))) {
+            view.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        }
+
+        int padding = dp(intOr(elementValue(element, ELEMENT_PADDING), 0));
+        if (padding > 0) {
+            view.setPadding(padding, padding, padding, padding);
+        }
+
+        String align = elementValue(element, ELEMENT_ALIGN);
+        if ("center".equalsIgnoreCase(align)) {
+            view.setGravity(Gravity.CENTER);
+        } else if ("end".equalsIgnoreCase(align) || "right".equalsIgnoreCase(align)) {
+            view.setGravity(Gravity.END);
+        }
+    }
+
+    private int parseColorOr(String value, int fallback) {
+        if (value == null || value.trim().isEmpty()) {
+            return fallback;
+        }
+
+        try {
+            return Color.parseColor(value.trim());
+        } catch (IllegalArgumentException ignored) {
+            return fallback;
+        }
+    }
+
+    private int intOr(String value, int fallback) {
+        if (value == null || value.trim().isEmpty()) {
+            return fallback;
+        }
+
+        try {
+            return Integer.parseInt(value.trim());
+        } catch (NumberFormatException ignored) {
+            return fallback;
+        }
+    }
+
+    private int dp(int value) {
+        if (value <= 0) {
+            return value;
+        }
+        return Math.round(value * getResources().getDisplayMetrics().density);
+    }
+
+    private String elementValue(String[] element, int index) {
+        if (index >= element.length || element[index] == null) {
+            return "";
+        }
+        return element[index];
     }
 }

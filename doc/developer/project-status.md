@@ -35,6 +35,7 @@ The project now has a working Python package, Rust/PyO3 bridge, basic Windows na
 - Added `--summary` mode for non-GUI smoke checks.
 - Added counter, login, todo, calculator, contact form, gallery, settings panel, quiz, and dashboard examples.
 - Added tests that load every example and export Android screen specs.
+- Added a first-pass design/style API with Windows and Android rendering support.
 
 ### Android Experiment
 

@@ -1,4 +1,4 @@
-from pynative import App, Button, Column, Input, State, Text, Window
+from pynative import App, Button, Column, Input, State, Style, Text, Window
 
 
 def test_app_serializes_widget_tree():
@@ -30,6 +30,48 @@ def test_state_notifies_subscribers():
     count.set(1)
 
     assert seen == [1]
+
+
+def test_widgets_serialize_style_props():
+    app = App(
+        Window(
+            title="Styled",
+            style=Style(background_color="#F8FAFC", padding=24),
+            child=Column(
+                [
+                    Text(
+                        "Hello",
+                        style=Style(
+                            color="#0F172A",
+                            font_size=22,
+                            font_weight="bold",
+                        ),
+                    ),
+                    Button(
+                        "Continue",
+                        style={
+                            "background_color": "#2563EB",
+                            "color": "#FFFFFF",
+                            "width": 180,
+                        },
+                    ),
+                ],
+                style=Style(gap=16),
+            ),
+        )
+    )
+
+    tree = app.to_dict()
+    window = tree["children"][0]
+    column = window["children"][0]
+    text = column["children"][0]
+    button = column["children"][1]
+
+    assert window["props"]["style"]["background_color"] == "#F8FAFC"
+    assert window["props"]["style"]["padding"] == 24
+    assert column["props"]["style"]["gap"] == 16
+    assert text["props"]["style"]["font_weight"] == "bold"
+    assert button["props"]["style"]["width"] == 180
 
 
 def test_app_dispatches_registered_button_callback():

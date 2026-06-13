@@ -112,10 +112,13 @@ def android_spec_from_app(app: Any, *, source_path: str | Path | None = None) ->
     tree = app.to_dict()
     title = find_window_title(tree) or "PyNative Android"
     widgets = collect_android_widgets(tree)
+    root_style = find_window_style(tree)
 
     return {
         "title": title,
         "source_path": str(source_path) if source_path else "built-in experiment",
+        "root_style": root_style,
+        "elements": collect_android_elements(tree),
         "texts": widgets["texts"],
         "buttons": widgets["buttons"],
         "inputs": widgets["inputs"],
@@ -144,6 +147,18 @@ def find_window_title(node: dict[str, Any]) -> str | None:
             return title
 
     return None
+
+
+def find_window_style(node: dict[str, Any]) -> dict[str, Any]:
+    if node.get("kind") == "Window":
+        return style_from_props(node.get("props", {}))
+
+    for child in node.get("children", []):
+        style = find_window_style(child)
+        if style:
+            return style
+
+    return {}
 
 
 def collect_android_widgets(node: dict[str, Any]) -> dict[str, Any]:
@@ -177,6 +192,62 @@ def collect_android_widgets(node: dict[str, Any]) -> dict[str, Any]:
 
     visit(node)
     return widgets
+
+
+def collect_android_elements(node: dict[str, Any]) -> list[dict[str, Any]]:
+    elements: list[dict[str, Any]] = []
+
+    def visit(current: dict[str, Any]) -> None:
+        kind = current.get("kind")
+        props = current.get("props", {})
+        style = style_from_props(props)
+
+        if kind == "Text":
+            elements.append(
+                {
+                    "kind": "Text",
+                    "value": str(props.get("value", "")),
+                    "style": style,
+                }
+            )
+        elif kind == "Button":
+            elements.append(
+                {
+                    "kind": "Button",
+                    "value": str(props.get("label", "Button")),
+                    "style": style,
+                    "has_callback": props.get("callback_id") is not None,
+                }
+            )
+        elif kind == "Input":
+            elements.append(
+                {
+                    "kind": "Input",
+                    "value": str(props.get("placeholder") or "Input"),
+                    "style": style,
+                }
+            )
+        elif kind == "Image":
+            elements.append(
+                {
+                    "kind": "Image",
+                    "value": str(props.get("alt") or props.get("src") or "Image"),
+                    "style": style,
+                }
+            )
+
+        for child in current.get("children", []):
+            visit(child)
+
+    visit(node)
+    return elements
+
+
+def style_from_props(props: dict[str, Any]) -> dict[str, Any]:
+    style = props.get("style", {})
+    if isinstance(style, dict):
+        return style
+    return {}
 
 
 def count_nodes(node: dict[str, Any]) -> int:

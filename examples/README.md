@@ -37,6 +37,7 @@ uv run pynative run android examples\counter\app.py
 - `todo`: task entry, list state, and clearing.
 - `calculator`: keypad layout and arithmetic state.
 - `contact_form`: form validation and reset flow.
+- `design_showcase`: colors, background, typography, spacing, sizing, and alignment.
 - `gallery`: image placeholder, caption state, and navigation.
 - `settings_panel`: toggle-style settings with state.
 - `quiz`: question flow, answer feedback, and score.

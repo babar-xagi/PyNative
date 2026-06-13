@@ -71,3 +71,31 @@ def test_android_spec_collects_widgets(tmp_path):
     assert spec["inputs"] == []
     assert spec["has_python_callbacks"] is True
     assert spec["node_count"] > 0
+    assert spec["elements"][0]["kind"] == "Text"
+    assert spec["elements"][1]["kind"] == "Button"
+
+
+def test_android_spec_includes_style_metadata():
+    from pynative import App, Column, Style, Text, Window
+
+    app = App(
+        Window(
+            title="Styled Android",
+            style=Style(background_color="#F8FAFC", padding=24),
+            child=Column(
+                [
+                    Text(
+                        "Styled",
+                        style=Style(color="#2563EB", font_size=22, align="center"),
+                    )
+                ]
+            ),
+        )
+    )
+
+    spec = android_spec_from_app(app)
+
+    assert spec["root_style"]["background_color"] == "#F8FAFC"
+    assert spec["root_style"]["padding"] == 24
+    assert spec["elements"][0]["style"]["color"] == "#2563EB"
+    assert spec["elements"][0]["style"]["font_size"] == 22

@@ -104,6 +104,34 @@ function ConvertTo-JavaStringArray($Values) {
     return "new String[]{" + ($items -join ", ") + "}"
 }
 
+function ConvertTo-JavaElementArray($Elements) {
+    $rows = @()
+
+    foreach ($element in (ConvertTo-Array $Elements)) {
+        $style = Get-SpecValue $element "style" ([pscustomobject]@{})
+        $values = @(
+            Get-SpecValue $element "kind" "Text"
+            Get-SpecValue $element "value" ""
+            Get-SpecValue $style "color" ""
+            Get-SpecValue $style "background_color" ""
+            Get-SpecValue $style "font_size" ""
+            Get-SpecValue $style "font_weight" ""
+            Get-SpecValue $style "width" ""
+            Get-SpecValue $style "height" ""
+            Get-SpecValue $style "padding" ""
+            Get-SpecValue $style "margin" ""
+            Get-SpecValue $style "align" ""
+        )
+        $rows += "        new String[]{" + (($values | ForEach-Object { ConvertTo-JavaString $_ }) -join ", ") + "}"
+    }
+
+    if ($rows.Count -eq 0) {
+        return "new String[][]{}"
+    }
+
+    return "new String[][]{`n" + ($rows -join ",`n") + "`n    }"
+}
+
 function Write-GeneratedAppSource($SpecPath, $Destination) {
     if ($SpecPath) {
         if (-not (Test-Path -LiteralPath $SpecPath)) {
@@ -119,18 +147,46 @@ function Write-GeneratedAppSource($SpecPath, $Destination) {
             buttons = @("Increase")
             inputs = @("Username")
             images = @()
+            root_style = [pscustomobject]@{
+                background_color = "#F8FAFC"
+                padding = 40
+            }
+            elements = @(
+                [pscustomobject]@{
+                    kind = "Text"
+                    value = "Count: 0"
+                    style = [pscustomobject]@{
+                        color = "#0F172A"
+                        font_size = 18
+                    }
+                },
+                [pscustomobject]@{
+                    kind = "Input"
+                    value = "Username"
+                    style = [pscustomobject]@{}
+                },
+                [pscustomobject]@{
+                    kind = "Button"
+                    value = "Increase"
+                    style = [pscustomobject]@{}
+                }
+            )
             has_python_callbacks = $false
             node_count = 0
             max_depth = 0
         }
     }
 
+    $rootStyle = Get-SpecValue $spec "root_style" ([pscustomobject]@{})
     $title = ConvertTo-JavaString (Get-SpecValue $spec "title" "PyNative Android")
     $sourcePath = ConvertTo-JavaString (Get-SpecValue $spec "source_path" "built-in experiment")
+    $rootBackgroundColor = ConvertTo-JavaString (Get-SpecValue $rootStyle "background_color" "#F8FAFC")
+    $rootPadding = [int](Get-SpecValue $rootStyle "padding" 40)
     $texts = ConvertTo-JavaStringArray (Get-SpecValue $spec "texts" @())
     $buttons = ConvertTo-JavaStringArray (Get-SpecValue $spec "buttons" @())
     $inputs = ConvertTo-JavaStringArray (Get-SpecValue $spec "inputs" @())
     $images = ConvertTo-JavaStringArray (Get-SpecValue $spec "images" @())
+    $elements = ConvertTo-JavaElementArray (Get-SpecValue $spec "elements" @())
     $nodeCount = [int](Get-SpecValue $spec "node_count" 0)
     $maxDepth = [int](Get-SpecValue $spec "max_depth" 0)
     $hasPythonCallbacks = if ([bool](Get-SpecValue $spec "has_python_callbacks" $false)) { "true" } else { "false" }
@@ -144,10 +200,13 @@ package com.pynative.experiment;
 public final class GeneratedApp {
     public static final String TITLE = $title;
     public static final String SOURCE_PATH = $sourcePath;
+    public static final String ROOT_BACKGROUND_COLOR = $rootBackgroundColor;
+    public static final int ROOT_PADDING = $rootPadding;
     public static final String[] TEXTS = $texts;
     public static final String[] BUTTON_LABELS = $buttons;
     public static final String[] INPUT_PLACEHOLDERS = $inputs;
     public static final String[] IMAGES = $images;
+    public static final String[][] ELEMENTS = $elements;
     public static final int NODE_COUNT = $nodeCount;
     public static final int MAX_DEPTH = $maxDepth;
     public static final boolean HAS_PYTHON_CALLBACKS = $hasPythonCallbacks;

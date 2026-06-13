@@ -28,6 +28,9 @@ All notable project changes are tracked here so each phase has a clear history.
 - Added generated Android screen metadata for text, buttons, inputs, image placeholders, node count, and source path.
 - Added example apps for todo, calculator, contact form, gallery, settings panel, quiz, and dashboard workflows.
 - Added automated tests that load every example and export Android specs for each one.
+- Added the `Style` design API with color, background color, font size, font weight, width, height, padding, margin, gap, and alignment fields.
+- Added first-pass Windows and Android style rendering support.
+- Added a design showcase example and user style guide.
 
 ## 0.1.0 - 2026-06-10
 

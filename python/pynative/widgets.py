@@ -4,6 +4,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
+from pynative.design import StyleInput, props_with_style
 from pynative.state import State
 
 
@@ -21,11 +22,12 @@ class Widget:
 class Window(Widget):
     child: Widget
     title: str = "PyNative UI"
+    style: StyleInput = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "kind": "Window",
-            "props": {"title": self.title},
+            "props": props_with_style({"title": self.title}, self.style),
             "children": [self.child.to_dict()],
         }
 
@@ -33,11 +35,12 @@ class Window(Widget):
 @dataclass
 class Column(Widget):
     children: Sequence[Widget] = field(default_factory=list)
+    style: StyleInput = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "kind": "Column",
-            "props": {},
+            "props": props_with_style({}, self.style),
             "children": [child.to_dict() for child in self.children],
         }
 
@@ -45,11 +48,12 @@ class Column(Widget):
 @dataclass
 class Row(Widget):
     children: Sequence[Widget] = field(default_factory=list)
+    style: StyleInput = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "kind": "Row",
-            "props": {},
+            "props": props_with_style({}, self.style),
             "children": [child.to_dict() for child in self.children],
         }
 
@@ -57,12 +61,13 @@ class Row(Widget):
 @dataclass
 class Text(Widget):
     value: str | Callable[[], str]
+    style: StyleInput = None
 
     def to_dict(self) -> dict[str, Any]:
         value = self.value() if callable(self.value) else self.value
         return {
             "kind": "Text",
-            "props": {"value": value},
+            "props": props_with_style({"value": value}, self.style),
             "children": [],
         }
 
@@ -71,14 +76,18 @@ class Text(Widget):
 class Button(Widget):
     label: str
     on_click: Callable[[], None] | None = None
+    style: StyleInput = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "kind": "Button",
-            "props": {
-                "label": self.label,
-                "callback_id": id(self.on_click) if self.on_click else None,
-            },
+            "props": props_with_style(
+                {
+                    "label": self.label,
+                    "callback_id": id(self.on_click) if self.on_click else None,
+                },
+                self.style,
+            ),
             "children": [],
         }
 
@@ -87,15 +96,19 @@ class Button(Widget):
 class Input(Widget):
     value: State[str]
     placeholder: str = ""
+    style: StyleInput = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "kind": "Input",
-            "props": {
-                "value": self.value.value,
-                "placeholder": self.placeholder,
-                "state_id": id(self.value),
-            },
+            "props": props_with_style(
+                {
+                    "value": self.value.value,
+                    "placeholder": self.placeholder,
+                    "state_id": id(self.value),
+                },
+                self.style,
+            ),
             "children": [],
         }
 
@@ -104,13 +117,17 @@ class Input(Widget):
 class Image(Widget):
     src: str
     alt: str = ""
+    style: StyleInput = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "kind": "Image",
-            "props": {
-                "src": self.src,
-                "alt": self.alt,
-            },
+            "props": props_with_style(
+                {
+                    "src": self.src,
+                    "alt": self.alt,
+                },
+                self.style,
+            ),
             "children": [],
         }

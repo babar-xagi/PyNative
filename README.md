@@ -81,7 +81,7 @@ uv run pynative run desktop examples\counter\app.py --summary
 
 ## Example Apps
 
-The `examples` folder includes counter, login, todo, calculator, contact form, gallery, settings, quiz, and dashboard demos.
+The `examples` folder includes counter, login, todo, calculator, contact form, design showcase, gallery, settings, quiz, and dashboard demos.
 
 Run any example on desktop:
 
@@ -93,6 +93,13 @@ Build any example as an Android APK:
 
 ```powershell
 uv run pynative build apk examples\todo\app.py
+```
+
+Run the design showcase:
+
+```powershell
+uv run pynative run desktop examples\design_showcase\app.py
+uv run pynative build apk examples\design_showcase\app.py
 ```
 
 ## Phase 0.1 Native Window Prototype
