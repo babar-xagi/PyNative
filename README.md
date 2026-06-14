@@ -150,6 +150,7 @@ assets/pynative/runtime.json
 ```
 
 On app launch, Android initializes a Rust runtime session from those assets. Button events return JSON responses with native event count and an updated widget-tree preview.
+Runtime assets also include stable IDs like `node:/0/0/1` and `event:/0/0/1`, so Android events no longer depend on Python memory addresses from build time.
 
 Connect a device or start an emulator, then install and launch:
 

@@ -120,16 +120,19 @@ def resolve_optional_app_target(target: str | Path | None = None) -> Path | None
 
 
 def android_spec_from_app(app: Any, *, source_path: str | Path | None = None) -> dict[str, Any]:
-    tree = app.to_dict()
+    tree = annotate_runtime_ids(app.to_dict())
     title = find_window_title(tree) or "PyNative Android"
     widgets = collect_android_widgets(tree)
     root_style = find_window_style(tree)
 
     return {
+        "runtime_ids_schema": "pynative.android.ids.v1",
         "title": title,
         "source_path": str(source_path) if source_path else "built-in experiment",
         "root_style": root_style,
         "elements": collect_android_elements(tree),
+        "events": collect_runtime_events(tree),
+        "states": collect_runtime_states(tree),
         "texts": widgets["texts"],
         "buttons": widgets["buttons"],
         "inputs": widgets["inputs"],
@@ -159,7 +162,7 @@ def write_android_runtime_assets(
     assets = output / "assets" / "pynative"
     assets.mkdir(parents=True, exist_ok=True)
 
-    tree = app.to_dict()
+    tree = annotate_runtime_ids(app.to_dict())
     (assets / "app.py").write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
     (assets / "widget_tree.json").write_text(
         json.dumps(tree, indent=2),
@@ -180,6 +183,9 @@ def write_android_runtime_assets(
                 "title": spec["title"],
                 "node_count": spec["node_count"],
                 "max_depth": spec["max_depth"],
+                "runtime_ids_schema": spec.get("runtime_ids_schema"),
+                "events": spec.get("events", []),
+                "states": spec.get("states", []),
             },
             indent=2,
         ),
@@ -187,6 +193,31 @@ def write_android_runtime_assets(
     )
 
     return output
+
+
+def annotate_runtime_ids(tree: dict[str, Any]) -> dict[str, Any]:
+    def visit(node: dict[str, Any], path: tuple[int, ...]) -> dict[str, Any]:
+        current = {
+            "kind": node.get("kind", "Widget"),
+            "props": dict(node.get("props", {})),
+            "children": [],
+        }
+        path_text = "/" + "/".join(str(index) for index in path) if path else "/"
+        props = current["props"]
+        props["node_id"] = f"node:{path_text}"
+
+        if current["kind"] == "Button":
+            props["event_id"] = f"event:{path_text}"
+        elif current["kind"] == "Input":
+            props["runtime_state_id"] = f"state:{path_text}"
+
+        current["children"] = [
+            visit(child, (*path, index))
+            for index, child in enumerate(node.get("children", []))
+        ]
+        return current
+
+    return visit(tree, ())
 
 
 def find_window_title(node: dict[str, Any]) -> str | None:
@@ -259,6 +290,7 @@ def collect_android_elements(node: dict[str, Any]) -> list[dict[str, Any]]:
             elements.append(
                 {
                     "kind": "Text",
+                    "node_id": str(props.get("node_id", "")),
                     "value": str(props.get("value", "")),
                     "style": style,
                 }
@@ -267,6 +299,8 @@ def collect_android_elements(node: dict[str, Any]) -> list[dict[str, Any]]:
             elements.append(
                 {
                     "kind": "Button",
+                    "node_id": str(props.get("node_id", "")),
+                    "event_id": str(props.get("event_id", "")),
                     "value": str(props.get("label", "Button")),
                     "style": style,
                     "has_callback": props.get("callback_id") is not None,
@@ -276,6 +310,8 @@ def collect_android_elements(node: dict[str, Any]) -> list[dict[str, Any]]:
             elements.append(
                 {
                     "kind": "Input",
+                    "node_id": str(props.get("node_id", "")),
+                    "state_id": str(props.get("runtime_state_id", "")),
                     "value": str(props.get("placeholder") or "Input"),
                     "style": style,
                 }
@@ -284,6 +320,7 @@ def collect_android_elements(node: dict[str, Any]) -> list[dict[str, Any]]:
             elements.append(
                 {
                     "kind": "Image",
+                    "node_id": str(props.get("node_id", "")),
                     "value": str(props.get("alt") or props.get("src") or "Image"),
                     "style": style,
                 }
@@ -294,6 +331,52 @@ def collect_android_elements(node: dict[str, Any]) -> list[dict[str, Any]]:
 
     visit(node)
     return elements
+
+
+def collect_runtime_events(node: dict[str, Any]) -> list[dict[str, Any]]:
+    events: list[dict[str, Any]] = []
+
+    def visit(current: dict[str, Any]) -> None:
+        props = current.get("props", {})
+        if current.get("kind") == "Button":
+            events.append(
+                {
+                    "kind": "button_click",
+                    "event_id": str(props.get("event_id", "")),
+                    "node_id": str(props.get("node_id", "")),
+                    "label": str(props.get("label", "Button")),
+                    "callback_available": props.get("callback_id") is not None,
+                }
+            )
+
+        for child in current.get("children", []):
+            visit(child)
+
+    visit(node)
+    return events
+
+
+def collect_runtime_states(node: dict[str, Any]) -> list[dict[str, Any]]:
+    states: list[dict[str, Any]] = []
+
+    def visit(current: dict[str, Any]) -> None:
+        props = current.get("props", {})
+        if current.get("kind") == "Input":
+            states.append(
+                {
+                    "kind": "input",
+                    "state_id": str(props.get("runtime_state_id", "")),
+                    "node_id": str(props.get("node_id", "")),
+                    "value": str(props.get("value", "")),
+                    "placeholder": str(props.get("placeholder", "")),
+                }
+            )
+
+        for child in current.get("children", []):
+            visit(child)
+
+    visit(node)
+    return states
 
 
 def style_from_props(props: dict[str, Any]) -> dict[str, Any]:

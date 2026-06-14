@@ -53,6 +53,7 @@ The project now has a working Python package, Rust/PyO3 bridge, basic Windows na
 - Added JSON event dispatch from Android to Rust with JSON responses.
 - Added Rust runtime session initialization from packaged Android assets.
 - Added Rust-side updated widget-tree preview responses for Android events.
+- Added stable Android runtime IDs for widget nodes, button events, and input state bindings.
 - Documented current Android requirements and limitations.
 
 ### Repository
@@ -77,6 +78,7 @@ The project now has a working Python package, Rust/PyO3 bridge, basic Windows na
 - Choose and document the Python-on-Android runtime approach.
 - Replace the Rust preview updater with live Python widget tree updates on Android.
 - Use packaged `assets/pynative/app.py` as the entrypoint once Python is embedded.
+- Use stable `event_id` and `state_id` values to reconnect Android events to Python callbacks and state.
 - Render basic `Text`, `Button`, and `Input` controls on Android.
 - Add device/emulator verification steps.
 

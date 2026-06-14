@@ -39,6 +39,8 @@ All notable project changes are tracked here so each phase has a clear history.
 - Added Android-to-Rust JSON event dispatch and JSON responses using `pynative.android.event.v1`.
 - Added Android runtime session initialization from packaged assets.
 - Added Rust-side updated widget-tree preview responses for Android event handling.
+- Added stable Android runtime IDs for nodes, events, and state bindings.
+- Added event registration checks in Rust responses for Android button events.
 
 ## 0.1.0 - 2026-06-10
 

@@ -99,10 +99,19 @@ pub fn dispatch_event_json(event_json: &str) -> String {
         .get("kind")
         .and_then(serde_json::Value::as_str)
         .unwrap_or("unknown");
+    let event_id = event
+        .get("event_id")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("");
+    let node_id = event
+        .get("node_id")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("");
     let session = runtime_session()
         .lock()
         .map(|session| session.clone())
         .unwrap_or_default();
+    let event_registered = session_event_registered(&session, event_id);
     let updated_widget_tree = if session.initialized {
         Some(updated_tree_for_event(
             session.widget_tree.clone(),
@@ -126,6 +135,9 @@ pub fn dispatch_event_json(event_json: &str) -> String {
         "ok": true,
         "protocol": "pynative.android.event.v1",
         "kind": kind,
+        "event_id": event_id,
+        "node_id": node_id,
+        "event_registered": event_registered,
         "native_events": native_events,
         "python_runtime": "not_embedded",
         "runtime_loaded": session.initialized,
@@ -137,6 +149,25 @@ pub fn dispatch_event_json(event_json: &str) -> String {
         "event": event,
     })
     .to_string()
+}
+
+fn session_event_registered(session: &RuntimeSession, event_id: &str) -> bool {
+    if event_id.is_empty() {
+        return false;
+    }
+
+    session
+        .runtime
+        .get("events")
+        .and_then(serde_json::Value::as_array)
+        .is_some_and(|events| {
+            events.iter().any(|event| {
+                event
+                    .get("event_id")
+                    .and_then(serde_json::Value::as_str)
+                    .is_some_and(|registered| registered == event_id)
+            })
+        })
 }
 
 fn runtime_session() -> &'static Mutex<RuntimeSession> {
@@ -361,17 +392,21 @@ mod tests {
     #[test]
     fn dispatches_json_event() {
         initialize_runtime_json(
-            r#"{"title":"Counter App","node_count":5}"#,
+            r#"{"title":"Counter App","node_count":5,"events":[{"event_id":"event:/0"}]}"#,
             "from pynative import App",
             r#"{"kind":"App","props":{},"children":[{"kind":"Text","props":{"value":"Count: 0"},"children":[]}]}"#,
         );
-        let response =
-            dispatch_event_json(r#"{"kind":"button_click","label":"Increase","ui_count":1}"#);
+        let response = dispatch_event_json(
+            r#"{"kind":"button_click","event_id":"event:/0","node_id":"node:/0","label":"Increase","ui_count":1}"#,
+        );
         let response: serde_json::Value = serde_json::from_str(&response).unwrap();
 
         assert_eq!(response["ok"], true);
         assert_eq!(response["protocol"], "pynative.android.event.v1");
         assert_eq!(response["kind"], "button_click");
+        assert_eq!(response["event_id"], "event:/0");
+        assert_eq!(response["node_id"], "node:/0");
+        assert_eq!(response["event_registered"], true);
         assert!(response["native_events"].as_i64().unwrap() > 0);
         assert_eq!(response["python_runtime"], "not_embedded");
         assert_eq!(response["runtime_loaded"], true);

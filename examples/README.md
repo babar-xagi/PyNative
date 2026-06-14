@@ -37,6 +37,7 @@ uv run pynative run android examples\counter\app.py
 ```
 
 The APK packages the selected example under `assets/pynative` so the next Android runtime phase can load it on-device.
+Those assets include stable node/event/state IDs for reconnecting Android events to Python runtime objects later.
 
 ## Available Examples
 

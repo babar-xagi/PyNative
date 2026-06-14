@@ -67,6 +67,7 @@ com.pynative.experiment/.MainActivity
 - Sends Android button events to Rust as JSON and receives a JSON response.
 - Initializes a Rust runtime session from packaged APK assets.
 - Returns a Rust-side updated widget tree preview in event responses.
+- Uses stable runtime IDs for nodes, events, and state bindings.
 - Renders a build-time export of the Python widget tree, not a live Python runtime.
 - Android button taps update local Android state, but Python callbacks do not run on-device yet.
 

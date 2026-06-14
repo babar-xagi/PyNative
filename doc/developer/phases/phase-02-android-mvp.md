@@ -48,6 +48,14 @@ The build packages runtime assets under `assets/pynative`:
 - `app_spec.json`
 - `runtime.json`
 
+Runtime assets use stable IDs:
+
+```text
+node:/0/0/1
+event:/0/0/1
+state:/0/0/2
+```
+
 ## Deliverables
 
 - Android/Kotlin shell for lifecycle and permissions.
@@ -71,6 +79,7 @@ The build packages runtime assets under `assets/pynative`:
 - Android button events are sent to Rust as JSON and receive JSON responses.
 - Rust initializes a runtime session from packaged `runtime.json`, `app.py`, and `widget_tree.json`.
 - Rust event responses include an updated widget-tree preview for the current Android UI refresh loop.
+- Runtime assets and events use stable node/event/state IDs instead of Python memory addresses.
 - Android log diagnostics through `Log.i("PyNative", ...)`.
 
 ## Workstreams
@@ -88,7 +97,7 @@ The build packages runtime assets under `assets/pynative`:
 Android sends:
 
 ```json
-{"kind":"button_click","label":"Increase","ui_count":1}
+{"kind":"button_click","event_id":"event:/0/0/1","node_id":"node:/0/0/1","label":"Increase","ui_count":1}
 ```
 
 Rust returns:

@@ -22,16 +22,19 @@ import org.json.JSONObject;
 
 public class MainActivity extends Activity {
     private static final int ELEMENT_KIND = 0;
-    private static final int ELEMENT_VALUE = 1;
-    private static final int ELEMENT_COLOR = 2;
-    private static final int ELEMENT_BACKGROUND_COLOR = 3;
-    private static final int ELEMENT_FONT_SIZE = 4;
-    private static final int ELEMENT_FONT_WEIGHT = 5;
-    private static final int ELEMENT_WIDTH = 6;
-    private static final int ELEMENT_HEIGHT = 7;
-    private static final int ELEMENT_PADDING = 8;
-    private static final int ELEMENT_MARGIN = 9;
-    private static final int ELEMENT_ALIGN = 10;
+    private static final int ELEMENT_NODE_ID = 1;
+    private static final int ELEMENT_EVENT_ID = 2;
+    private static final int ELEMENT_STATE_ID = 3;
+    private static final int ELEMENT_VALUE = 4;
+    private static final int ELEMENT_COLOR = 5;
+    private static final int ELEMENT_BACKGROUND_COLOR = 6;
+    private static final int ELEMENT_FONT_SIZE = 7;
+    private static final int ELEMENT_FONT_WEIGHT = 8;
+    private static final int ELEMENT_WIDTH = 9;
+    private static final int ELEMENT_HEIGHT = 10;
+    private static final int ELEMENT_PADDING = 11;
+    private static final int ELEMENT_MARGIN = 12;
+    private static final int ELEMENT_ALIGN = 13;
 
     private int count = 0;
     private TextView statusText;
@@ -116,7 +119,11 @@ public class MainActivity extends Activity {
                 Button button = new Button(this);
                 button.setText(value);
                 applyTextStyle(button, element, 16, Color.rgb(15, 23, 42));
-                button.setOnClickListener(view -> handleButtonClick(value));
+                button.setOnClickListener(view -> handleButtonClick(
+                        value,
+                        elementValue(element, ELEMENT_NODE_ID),
+                        elementValue(element, ELEMENT_EVENT_ID)
+                ));
                 root.addView(button, paramsFor(element));
             } else if ("Image".equals(kind)) {
                 TextView imageView = new TextView(this);
@@ -127,7 +134,7 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void handleButtonClick(String label) {
+    private void handleButtonClick(String label, String nodeId, String eventId) {
         count += 1;
 
         if (!textViews.isEmpty()) {
@@ -148,7 +155,7 @@ public class MainActivity extends Activity {
             statusText.setText("Tap " + count + ": " + label + " for " + inputText);
         }
 
-        String eventJson = buildButtonEventJson(label, inputText);
+        String eventJson = buildButtonEventJson(label, nodeId, eventId, inputText);
         String responseJson = PyNativeBridge.dispatchEventJson(eventJson);
         int nativeEvents = nativeEventCount(responseJson);
         applyRuntimeResponse(responseJson);
@@ -215,10 +222,17 @@ public class MainActivity extends Activity {
         }
     }
 
-    private String buildButtonEventJson(String label, String inputText) {
+    private String buildButtonEventJson(
+            String label,
+            String nodeId,
+            String eventId,
+            String inputText
+    ) {
         try {
             JSONObject event = new JSONObject();
             event.put("kind", "button_click");
+            event.put("event_id", eventId);
+            event.put("node_id", nodeId);
             event.put("label", label);
             event.put("ui_count", count);
             event.put("input", inputText);

@@ -77,6 +77,11 @@ def test_android_spec_collects_widgets(tmp_path):
     assert spec["node_count"] > 0
     assert spec["elements"][0]["kind"] == "Text"
     assert spec["elements"][1]["kind"] == "Button"
+    assert spec["runtime_ids_schema"] == "pynative.android.ids.v1"
+    assert spec["elements"][0]["node_id"].startswith("node:")
+    assert spec["elements"][1]["event_id"].startswith("event:")
+    assert spec["events"][0]["kind"] == "button_click"
+    assert spec["events"][0]["callback_available"] is True
 
 
 def test_android_spec_includes_style_metadata():
@@ -121,6 +126,13 @@ def test_android_runtime_assets_include_app_and_tree(tmp_path):
     assert (asset_dir / "app.py").exists()
     assert (asset_dir / "widget_tree.json").exists()
     assert (asset_dir / "runtime.json").exists()
-    assert '"schema": "pynative.android.runtime.v1"' in (asset_dir / "runtime.json").read_text(
+    runtime_json = (asset_dir / "runtime.json").read_text(
         encoding="utf-8"
     )
+    widget_tree_json = (asset_dir / "widget_tree.json").read_text(encoding="utf-8")
+
+    assert '"schema": "pynative.android.runtime.v1"' in runtime_json
+    assert '"runtime_ids_schema": "pynative.android.ids.v1"' in runtime_json
+    assert '"events": [' in runtime_json
+    assert '"node_id": "node:' in widget_tree_json
+    assert '"event_id": "event:' in widget_tree_json

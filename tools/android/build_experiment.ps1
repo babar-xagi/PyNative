@@ -189,6 +189,9 @@ function ConvertTo-JavaElementArray($Elements) {
         $style = Get-SpecValue $element "style" ([pscustomobject]@{})
         $values = @(
             Get-SpecValue $element "kind" "Text"
+            Get-SpecValue $element "node_id" ""
+            Get-SpecValue $element "event_id" ""
+            Get-SpecValue $element "state_id" ""
             Get-SpecValue $element "value" ""
             Get-SpecValue $style "color" ""
             Get-SpecValue $style "background_color" ""
@@ -232,6 +235,7 @@ function Write-GeneratedAppSource($SpecPath, $Destination) {
             elements = @(
                 [pscustomobject]@{
                     kind = "Text"
+                    node_id = "node:/0"
                     value = "Count: 0"
                     style = [pscustomobject]@{
                         color = "#0F172A"
@@ -240,11 +244,15 @@ function Write-GeneratedAppSource($SpecPath, $Destination) {
                 },
                 [pscustomobject]@{
                     kind = "Input"
+                    node_id = "node:/1"
+                    state_id = "state:/1"
                     value = "Username"
                     style = [pscustomobject]@{}
                 },
                 [pscustomobject]@{
                     kind = "Button"
+                    node_id = "node:/2"
+                    event_id = "event:/2"
                     value = "Increase"
                     style = [pscustomobject]@{}
                 }
