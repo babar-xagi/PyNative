@@ -1,5 +1,9 @@
 from pynative.cli import callback_window_command, doctor, hello_window_command
-from pynative.android import android_environment, android_spec_from_app
+from pynative.android import (
+    android_environment,
+    android_spec_from_app,
+    write_android_runtime_assets,
+)
 from pynative.project import create_project, load_app, normalize_project_name, run_desktop_app
 
 
@@ -99,3 +103,24 @@ def test_android_spec_includes_style_metadata():
     assert spec["root_style"]["padding"] == 24
     assert spec["elements"][0]["style"]["color"] == "#2563EB"
     assert spec["elements"][0]["style"]["font_size"] == 22
+
+
+def test_android_runtime_assets_include_app_and_tree(tmp_path):
+    created = create_project("asset-demo", base_dir=tmp_path)
+    app = load_app(created.path)
+    spec = android_spec_from_app(app, source_path=created.path / "app.py")
+
+    assets_root = write_android_runtime_assets(
+        app,
+        source_path=created.path / "app.py",
+        spec=spec,
+        output_root=tmp_path / "runtime-assets",
+    )
+
+    asset_dir = assets_root / "assets" / "pynative"
+    assert (asset_dir / "app.py").exists()
+    assert (asset_dir / "widget_tree.json").exists()
+    assert (asset_dir / "runtime.json").exists()
+    assert '"schema": "pynative.android.runtime.v1"' in (asset_dir / "runtime.json").read_text(
+        encoding="utf-8"
+    )

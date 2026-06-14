@@ -1,5 +1,6 @@
 param(
     [string]$AppSpec,
+    [string]$RuntimeAssetsRoot,
     [ValidateSet("arm64-v8a", "x86_64")]
     [string]$AndroidAbi = "arm64-v8a",
     [switch]$SkipRustBridge,
@@ -334,6 +335,9 @@ Write-Host "Android ABI: $AndroidAbi"
 if ($AppSpec) {
     Write-Host "App spec: $AppSpec"
 }
+if ($RuntimeAssetsRoot) {
+    Write-Host "Runtime assets: $RuntimeAssetsRoot"
+}
 
 if (-not $SkipRustBridge) {
     $RustNativeRoot = Build-RustBridge $RepoRoot $AndroidSdk $BuildRoot $AndroidAbi
@@ -386,6 +390,16 @@ if ($LASTEXITCODE -ne 0) { throw "adding classes.dex failed" }
 if (-not $SkipRustBridge) {
     & $Jar uf $UnsignedApk -C $RustNativeRoot lib
     if ($LASTEXITCODE -ne 0) { throw "adding Rust bridge library failed" }
+}
+
+if ($RuntimeAssetsRoot) {
+    $AssetsRoot = Join-Path $RuntimeAssetsRoot "assets"
+    if (-not (Test-Path -LiteralPath $AssetsRoot)) {
+        throw "Runtime assets folder not found: $AssetsRoot"
+    }
+
+    & $Jar uf $UnsignedApk -C $RuntimeAssetsRoot assets
+    if ($LASTEXITCODE -ne 0) { throw "adding runtime assets failed" }
 }
 
 & $Zipalign -f 4 $UnsignedApk $AlignedApk

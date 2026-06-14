@@ -10,3 +10,6 @@ publish = false
 [lib]
 name = "pynative_android_bridge"
 crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+serde_json = { workspace = true }

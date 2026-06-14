@@ -11,8 +11,14 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 public class MainActivity extends Activity {
     private static final int ELEMENT_KIND = 0;
@@ -29,6 +35,7 @@ public class MainActivity extends Activity {
 
     private int count = 0;
     private TextView statusText;
+    private String runtimeInitJson = "{\"ok\":false,\"error\":\"not initialized\"}";
     private final List<TextView> textViews = new ArrayList<>();
     private final List<EditText> inputViews = new ArrayList<>();
 
@@ -60,12 +67,15 @@ public class MainActivity extends Activity {
         root.addView(subtitle, matchWrap());
 
         renderGeneratedElements(root);
+        runtimeInitJson = initializeRuntimeFromAssets();
 
         statusText = new TextView(this);
         statusText.setText("Android screen loaded. Nodes: "
                 + GeneratedApp.NODE_COUNT
                 + ". "
-                + PyNativeBridge.status());
+                + PyNativeBridge.status()
+                + " "
+                + runtimeInitStatus());
         statusText.setTextSize(16);
         statusText.setTextColor(Color.rgb(15, 118, 110));
         statusText.setPadding(0, 18, 0, 18);
@@ -138,14 +148,10 @@ public class MainActivity extends Activity {
             statusText.setText("Tap " + count + ": " + label + " for " + inputText);
         }
 
-        int nativeEvents = PyNativeBridge.buttonEvent(
-                label,
-                count,
-                GeneratedApp.HAS_PYTHON_CALLBACKS
-        );
-        if (nativeEvents >= 0) {
-            statusText.setText(statusText.getText() + ". Rust events: " + nativeEvents);
-        }
+        String eventJson = buildButtonEventJson(label, inputText);
+        String responseJson = PyNativeBridge.dispatchEventJson(eventJson);
+        int nativeEvents = nativeEventCount(responseJson);
+        applyRuntimeResponse(responseJson);
 
         Log.i(
                 "PyNative",
@@ -154,7 +160,96 @@ public class MainActivity extends Activity {
                         + " pythonCallback=" + GeneratedApp.HAS_PYTHON_CALLBACKS
                         + " rustBridge=" + PyNativeBridge.isAvailable()
                         + " rustEvents=" + nativeEvents
+                        + " event=" + eventJson
+                        + " response=" + responseJson
         );
+    }
+
+    private String initializeRuntimeFromAssets() {
+        try {
+            String runtime = readAsset("pynative/runtime.json");
+            String app = readAsset("pynative/app.py");
+            String tree = readAsset("pynative/widget_tree.json");
+            String response = PyNativeBridge.initializeRuntimeJson(runtime, app, tree);
+            Log.i("PyNative", "Runtime init response=" + response);
+            return response;
+        } catch (IOException error) {
+            Log.w("PyNative", "Runtime assets unavailable.", error);
+            return "{\"ok\":false,\"error\":\"runtime assets unavailable\"}";
+        }
+    }
+
+    private String runtimeInitStatus() {
+        try {
+            JSONObject response = new JSONObject(runtimeInitJson);
+            if (response.optBoolean("runtime_loaded", false)) {
+                return "Runtime assets loaded. App bytes: "
+                        + response.optInt("app_source_len", 0)
+                        + ".";
+            }
+            return "Runtime init failed.";
+        } catch (JSONException error) {
+            return "Runtime init response invalid.";
+        }
+    }
+
+    private void applyRuntimeResponse(String responseJson) {
+        try {
+            JSONObject response = new JSONObject(responseJson);
+            int nativeEvents = response.optInt("native_events", -1);
+            String updatedText = response.optString("updated_text", "");
+
+            if (!updatedText.isEmpty() && !textViews.isEmpty()) {
+                textViews.get(0).setText(updatedText);
+            }
+
+            if (nativeEvents >= 0) {
+                statusText.setText(statusText.getText()
+                        + ". Rust events: "
+                        + nativeEvents
+                        + ". Update: "
+                        + response.optString("updated_by", "none"));
+            }
+        } catch (JSONException error) {
+            Log.w("PyNative", "Could not apply Rust event response: " + responseJson, error);
+        }
+    }
+
+    private String buildButtonEventJson(String label, String inputText) {
+        try {
+            JSONObject event = new JSONObject();
+            event.put("kind", "button_click");
+            event.put("label", label);
+            event.put("ui_count", count);
+            event.put("input", inputText);
+            event.put("has_python_callbacks", GeneratedApp.HAS_PYTHON_CALLBACKS);
+            event.put("source_path", GeneratedApp.SOURCE_PATH);
+            return event.toString();
+        } catch (JSONException error) {
+            return "{\"kind\":\"button_click\",\"error\":\"json_build_failed\"}";
+        }
+    }
+
+    private int nativeEventCount(String responseJson) {
+        try {
+            JSONObject response = new JSONObject(responseJson);
+            return response.optInt("native_events", -1);
+        } catch (JSONException error) {
+            Log.w("PyNative", "Could not parse Rust event response: " + responseJson, error);
+            return -1;
+        }
+    }
+
+    private String readAsset(String path) throws IOException {
+        try (InputStream input = getAssets().open(path)) {
+            ByteArrayOutputStream output = new ByteArrayOutputStream();
+            byte[] buffer = new byte[4096];
+            int read;
+            while ((read = input.read(buffer)) != -1) {
+                output.write(buffer, 0, read);
+            }
+            return output.toString(StandardCharsets.UTF_8.name());
+        }
     }
 
     private LinearLayout.LayoutParams matchWrap() {

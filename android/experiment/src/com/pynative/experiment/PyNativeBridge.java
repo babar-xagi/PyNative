@@ -55,6 +55,30 @@ public final class PyNativeBridge {
         return nativeButtonEvent(label, uiCount, hasPythonCallbacks);
     }
 
+    public static String initializeRuntimeJson(
+            String runtimeJson,
+            String appSource,
+            String widgetTreeJson
+    ) {
+        if (!AVAILABLE) {
+            return "{\"ok\":false,\"error\":\"Rust JNI bridge unavailable\",\"load_error\":\""
+                    + jsonEscape(LOAD_ERROR)
+                    + "\"}";
+        }
+
+        return nativeInitializeRuntimeJson(runtimeJson, appSource, widgetTreeJson);
+    }
+
+    public static String dispatchEventJson(String eventJson) {
+        if (!AVAILABLE) {
+            return "{\"ok\":false,\"error\":\"Rust JNI bridge unavailable\",\"load_error\":\""
+                    + jsonEscape(LOAD_ERROR)
+                    + "\"}";
+        }
+
+        return nativeDispatchEventJson(eventJson);
+    }
+
     public static int lastButtonEventCount() {
         if (!AVAILABLE) {
             return 0;
@@ -71,5 +95,26 @@ public final class PyNativeBridge {
             boolean hasPythonCallbacks
     );
 
+    private static native String nativeInitializeRuntimeJson(
+            String runtimeJson,
+            String appSource,
+            String widgetTreeJson
+    );
+
+    private static native String nativeDispatchEventJson(String eventJson);
+
     private static native int nativeLastButtonEventCount();
+
+    private static String jsonEscape(String value) {
+        if (value == null) {
+            return "";
+        }
+
+        return value
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\r", "\\r")
+                .replace("\n", "\\n")
+                .replace("\t", "\\t");
+    }
 }

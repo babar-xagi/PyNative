@@ -49,6 +49,10 @@ The project now has a working Python package, Rust/PyO3 bridge, basic Windows na
 - Added a Rust JNI bridge crate for Android.
 - Packaged `libpynative_android_bridge.so` into Android APK builds.
 - Forwarded Android button taps into Rust and reported native event counts.
+- Packaged Python app source, widget tree, app spec, and runtime metadata into APK assets.
+- Added JSON event dispatch from Android to Rust with JSON responses.
+- Added Rust runtime session initialization from packaged Android assets.
+- Added Rust-side updated widget-tree preview responses for Android events.
 - Documented current Android requirements and limitations.
 
 ### Repository
@@ -71,7 +75,8 @@ The project now has a working Python package, Rust/PyO3 bridge, basic Windows na
 - Replace the generated Java experiment with a proper Android runtime shell.
 - Decide what Android event/runtime logic belongs in Rust versus Python now that Android can call Rust through JNI.
 - Choose and document the Python-on-Android runtime approach.
-- Move from build-time widget export to a live Python widget tree on Android.
+- Replace the Rust preview updater with live Python widget tree updates on Android.
+- Use packaged `assets/pynative/app.py` as the entrypoint once Python is embedded.
 - Render basic `Text`, `Button`, and `Input` controls on Android.
 - Add device/emulator verification steps.
 

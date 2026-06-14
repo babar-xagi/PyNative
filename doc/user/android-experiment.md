@@ -35,6 +35,15 @@ Output:
 build\android-experiment\pynative-android-debug.apk
 ```
 
+The APK includes:
+
+```text
+assets/pynative/app.py
+assets/pynative/widget_tree.json
+assets/pynative/runtime.json
+lib/arm64-v8a/libpynative_android_bridge.so
+```
+
 ## Install And Launch
 
 Connect an Android device with USB debugging enabled, or start an Android emulator, then run:
@@ -54,6 +63,10 @@ com.pynative.experiment/.MainActivity
 - Uses a Java Activity for the experiment.
 - Does not embed Python yet.
 - Loads a Rust JNI bridge on Android and sends button events into Rust.
+- Packages the Python app source and widget tree as APK assets.
+- Sends Android button events to Rust as JSON and receives a JSON response.
+- Initializes a Rust runtime session from packaged APK assets.
+- Returns a Rust-side updated widget tree preview in event responses.
 - Renders a build-time export of the Python widget tree, not a live Python runtime.
 - Android button taps update local Android state, but Python callbacks do not run on-device yet.
 

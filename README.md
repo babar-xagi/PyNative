@@ -141,6 +141,16 @@ Android builds now package a Rust JNI bridge. The default ABI is `arm64-v8a` for
 uv run pynative build apk examples\counter\app.py --android-abi x86_64
 ```
 
+The APK also includes early runtime assets:
+
+```text
+assets/pynative/app.py
+assets/pynative/widget_tree.json
+assets/pynative/runtime.json
+```
+
+On app launch, Android initializes a Rust runtime session from those assets. Button events return JSON responses with native event count and an updated widget-tree preview.
+
 Connect a device or start an emulator, then install and launch:
 
 ```powershell

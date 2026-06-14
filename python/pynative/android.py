@@ -84,7 +84,13 @@ def build_android_app(
         app = load_app(target_path)
         spec = android_spec_from_app(app, source_path=target_path)
         spec_path = write_android_app_spec(spec)
+        assets_root = write_android_runtime_assets(
+            app,
+            source_path=target_path,
+            spec=spec,
+        )
         command.extend(["-AppSpec", str(spec_path)])
+        command.extend(["-RuntimeAssetsRoot", str(assets_root)])
 
     if install or launch:
         command.append("-Install")
@@ -138,6 +144,48 @@ def write_android_app_spec(spec: dict[str, Any]) -> Path:
     output = repo_root() / "build" / "android-app-spec.json"
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(spec, indent=2), encoding="utf-8")
+    return output
+
+
+def write_android_runtime_assets(
+    app: Any,
+    *,
+    source_path: str | Path,
+    spec: dict[str, Any],
+    output_root: str | Path | None = None,
+) -> Path:
+    source = Path(source_path)
+    output = Path(output_root) if output_root else repo_root() / "build" / "android-runtime-assets"
+    assets = output / "assets" / "pynative"
+    assets.mkdir(parents=True, exist_ok=True)
+
+    tree = app.to_dict()
+    (assets / "app.py").write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+    (assets / "widget_tree.json").write_text(
+        json.dumps(tree, indent=2),
+        encoding="utf-8",
+    )
+    (assets / "app_spec.json").write_text(
+        json.dumps(spec, indent=2),
+        encoding="utf-8",
+    )
+    (assets / "runtime.json").write_text(
+        json.dumps(
+            {
+                "schema": "pynative.android.runtime.v1",
+                "python_runtime": "not_embedded",
+                "event_protocol": "pynative.android.event.v1",
+                "entrypoint": "app.py",
+                "source_path": str(source),
+                "title": spec["title"],
+                "node_count": spec["node_count"],
+                "max_depth": spec["max_depth"],
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
     return output
 
 

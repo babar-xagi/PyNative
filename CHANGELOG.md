@@ -35,6 +35,10 @@ All notable project changes are tracked here so each phase has a clear history.
 - Packaged the Android Rust bridge into APK builds as `libpynative_android_bridge.so`.
 - Added `--android-abi` for phone (`arm64-v8a`) and emulator (`x86_64`) APK builds.
 - Forwarded Android button taps into Rust and exposed native bridge event counts in the Android UI/logs.
+- Packaged Android runtime assets in APK builds: `app.py`, `widget_tree.json`, `app_spec.json`, and `runtime.json`.
+- Added Android-to-Rust JSON event dispatch and JSON responses using `pynative.android.event.v1`.
+- Added Android runtime session initialization from packaged assets.
+- Added Rust-side updated widget-tree preview responses for Android event handling.
 
 ## 0.1.0 - 2026-06-10
 

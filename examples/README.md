@@ -36,6 +36,8 @@ Install and launch when a device or emulator is connected:
 uv run pynative run android examples\counter\app.py
 ```
 
+The APK packages the selected example under `assets/pynative` so the next Android runtime phase can load it on-device.
+
 ## Available Examples
 
 - `counter`: basic state and button callback.

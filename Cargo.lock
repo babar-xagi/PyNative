@@ -174,6 +174,9 @@ dependencies = [
 [[package]]
 name = "pynative_android_bridge"
 version = "0.1.0"
+dependencies = [
+ "serde_json",
+]
 
 [[package]]
 name = "pynative_cli"

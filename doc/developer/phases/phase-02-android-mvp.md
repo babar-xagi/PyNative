@@ -41,6 +41,13 @@ For an x86_64 emulator:
 uv run pynative build apk examples\counter\app.py --android-abi x86_64
 ```
 
+The build packages runtime assets under `assets/pynative`:
+
+- `app.py`
+- `widget_tree.json`
+- `app_spec.json`
+- `runtime.json`
+
 ## Deliverables
 
 - Android/Kotlin shell for lifecycle and permissions.
@@ -60,6 +67,10 @@ uv run pynative build apk examples\counter\app.py --android-abi x86_64
 - Basic Android button state update inside the generated screen shell.
 - Rust JNI bridge crate packaged as `libpynative_android_bridge.so`.
 - Android button events are forwarded into Rust and counted by the native bridge.
+- Python app source and widget-tree assets are packaged into the APK.
+- Android button events are sent to Rust as JSON and receive JSON responses.
+- Rust initializes a runtime session from packaged `runtime.json`, `app.py`, and `widget_tree.json`.
+- Rust event responses include an updated widget-tree preview for the current Android UI refresh loop.
 - Android log diagnostics through `Log.i("PyNative", ...)`.
 
 ## Workstreams
@@ -71,6 +82,32 @@ uv run pynative build apk examples\counter\app.py --android-abi x86_64
 - Device/emulator deployment.
 - Mobile logging and diagnostics.
 - Compatibility notes for pure Python packages.
+ 
+## Current Event Protocol
+
+Android sends:
+
+```json
+{"kind":"button_click","label":"Increase","ui_count":1}
+```
+
+Rust returns:
+
+```json
+{"ok":true,"protocol":"pynative.android.event.v1","native_events":1,"python_runtime":"not_embedded"}
+```
+
+Before dispatching events, Android initializes the Rust runtime session:
+
+```json
+{"protocol":"pynative.android.runtime.v1","runtime_loaded":true,"python_runtime":"not_embedded"}
+```
+
+The event response can include:
+
+```json
+{"updated_by":"rust_preview","updated_text":"Count: 1","updated_widget_tree":{}}
+```
 
 ## Acceptance Criteria
 
