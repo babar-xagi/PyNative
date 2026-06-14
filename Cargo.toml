@@ -15,6 +15,7 @@ crate-type = ["cdylib", "rlib"]
 resolver = "3"
 members = [
     "crates/pynative_core",
+    "crates/pynative_android_bridge",
     "crates/pynative_cli",
     "crates/pynative_platform_windows",
 ]

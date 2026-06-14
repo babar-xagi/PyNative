@@ -1,0 +1,12 @@
+[package]
+name = "pynative_android_bridge"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Android JNI bridge for PyNative UI"
+publish = false
+
+[lib]
+name = "pynative_android_bridge"
+crate-type = ["cdylib", "rlib"]

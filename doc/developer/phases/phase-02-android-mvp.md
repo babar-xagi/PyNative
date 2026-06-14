@@ -29,6 +29,18 @@ uv run pynative build apk examples\counter\app.py
 
 This exports a build-time Android screen spec from the Python widget tree and generates a Java `GeneratedApp` class for the Activity.
 
+The APK also packages a Rust JNI bridge. The default ABI is `arm64-v8a` for real phones:
+
+```powershell
+uv run pynative build apk examples\counter\app.py
+```
+
+For an x86_64 emulator:
+
+```powershell
+uv run pynative build apk examples\counter\app.py --android-abi x86_64
+```
+
 ## Deliverables
 
 - Android/Kotlin shell for lifecycle and permissions.
@@ -46,6 +58,8 @@ This exports a build-time Android screen spec from the Python widget tree and ge
 - `pynative build apk` command.
 - Build-time widget export for `Text`, `Button`, `Input`, and `Image` placeholders.
 - Basic Android button state update inside the generated screen shell.
+- Rust JNI bridge crate packaged as `libpynative_android_bridge.so`.
+- Android button events are forwarded into Rust and counted by the native bridge.
 - Android log diagnostics through `Log.i("PyNative", ...)`.
 
 ## Workstreams

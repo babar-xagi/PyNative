@@ -42,11 +42,13 @@ def run_android_experiment(
     target: str | Path | None = None,
     *,
     build_only: bool = False,
+    android_abi: str = "arm64-v8a",
 ) -> int:
     result = build_android_app(
         target=target,
         install=not build_only,
         launch=not build_only,
+        android_abi=android_abi,
     )
     return result.returncode
 
@@ -56,6 +58,7 @@ def build_android_app(
     *,
     install: bool = False,
     launch: bool = False,
+    android_abi: str = "arm64-v8a",
 ) -> AndroidBuildResult:
     env = android_environment()
     if not env.build_script.exists():
@@ -71,6 +74,8 @@ def build_android_app(
         "Bypass",
         "-File",
         str(env.build_script),
+        "-AndroidAbi",
+        android_abi,
     ]
 
     if target_path is not None:

@@ -135,6 +135,12 @@ uv run pynative run android examples\counter\app.py --build-only
 uv run pynative build apk examples\counter\app.py
 ```
 
+Android builds now package a Rust JNI bridge. The default ABI is `arm64-v8a` for real phones. For an x86_64 emulator:
+
+```powershell
+uv run pynative build apk examples\counter\app.py --android-abi x86_64
+```
+
 Connect a device or start an emulator, then install and launch:
 
 ```powershell

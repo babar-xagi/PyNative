@@ -62,7 +62,10 @@ public class MainActivity extends Activity {
         renderGeneratedElements(root);
 
         statusText = new TextView(this);
-        statusText.setText("Android screen loaded. Nodes: " + GeneratedApp.NODE_COUNT);
+        statusText.setText("Android screen loaded. Nodes: "
+                + GeneratedApp.NODE_COUNT
+                + ". "
+                + PyNativeBridge.status());
         statusText.setTextSize(16);
         statusText.setTextColor(Color.rgb(15, 118, 110));
         statusText.setPadding(0, 18, 0, 18);
@@ -135,11 +138,22 @@ public class MainActivity extends Activity {
             statusText.setText("Tap " + count + ": " + label + " for " + inputText);
         }
 
+        int nativeEvents = PyNativeBridge.buttonEvent(
+                label,
+                count,
+                GeneratedApp.HAS_PYTHON_CALLBACKS
+        );
+        if (nativeEvents >= 0) {
+            statusText.setText(statusText.getText() + ". Rust events: " + nativeEvents);
+        }
+
         Log.i(
                 "PyNative",
                 "Android button event #" + count
                         + " label=" + label
                         + " pythonCallback=" + GeneratedApp.HAS_PYTHON_CALLBACKS
+                        + " rustBridge=" + PyNativeBridge.isAvailable()
+                        + " rustEvents=" + nativeEvents
         );
     }
 

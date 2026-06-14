@@ -1,5 +1,8 @@
 param(
     [string]$AppSpec,
+    [ValidateSet("arm64-v8a", "x86_64")]
+    [string]$AndroidAbi = "arm64-v8a",
+    [switch]$SkipRustBridge,
     [switch]$Install,
     [switch]$Launch
 )
@@ -17,6 +20,7 @@ $CompiledRes = Join-Path $BuildRoot "compiled-res"
 $ClassesRoot = Join-Path $BuildRoot "classes"
 $ClassesJar = Join-Path $BuildRoot "classes.jar"
 $DexRoot = Join-Path $BuildRoot "dex"
+$NativeRoot = Join-Path $BuildRoot "native"
 $LocalAndroidJar = Join-Path $BuildRoot "android.jar"
 $UnsignedApk = Join-Path $BuildRoot "pynative-android-unsigned.apk"
 $AlignedApk = Join-Path $BuildRoot "pynative-android-aligned.apk"
@@ -59,6 +63,79 @@ function Resolve-JavaHome {
     }
 
     throw "Java JDK not found. Install Android Studio or set JAVA_HOME."
+}
+
+function Resolve-LatestNdk($AndroidSdk) {
+    $ndkRoot = Join-Path $AndroidSdk "ndk"
+    if (-not (Test-Path -LiteralPath $ndkRoot)) {
+        throw "Android NDK not found. Install the NDK from Android Studio SDK Manager."
+    }
+
+    return Resolve-LatestDirectory $ndkRoot
+}
+
+function Resolve-RustBridgeTarget($Abi) {
+    if ($Abi -eq "arm64-v8a") {
+        return [pscustomobject]@{
+            Abi = "arm64-v8a"
+            RustTarget = "aarch64-linux-android"
+            LinkerEnv = "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER"
+            RustFlagsEnv = "CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS"
+            ClangTarget = "aarch64-linux-android26"
+        }
+    }
+
+    if ($Abi -eq "x86_64") {
+        return [pscustomobject]@{
+            Abi = "x86_64"
+            RustTarget = "x86_64-linux-android"
+            LinkerEnv = "CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER"
+            RustFlagsEnv = "CARGO_TARGET_X86_64_LINUX_ANDROID_RUSTFLAGS"
+            ClangTarget = "x86_64-linux-android26"
+        }
+    }
+
+    throw "Unsupported Android ABI: $Abi"
+}
+
+function Build-RustBridge($RepoRoot, $AndroidSdk, $BuildRoot, $Abi) {
+    $target = Resolve-RustBridgeTarget $Abi
+    $ndk = Resolve-LatestNdk $AndroidSdk
+    $clang = Join-Path $ndk "toolchains\llvm\prebuilt\windows-x86_64\bin\clang.exe"
+    if (-not (Test-Path -LiteralPath $clang)) {
+        throw "Android NDK clang not found: $clang"
+    }
+
+    $installedTargets = @(rustup target list --installed)
+    if ($LASTEXITCODE -ne 0) {
+        throw "rustup target list failed"
+    }
+
+    if ($installedTargets -notcontains $target.RustTarget) {
+        throw "Rust target $($target.RustTarget) is not installed. Run: rustup target add $($target.RustTarget)"
+    }
+
+    Set-Item -Path "Env:$($target.LinkerEnv)" -Value $clang
+    Set-Item -Path "Env:$($target.RustFlagsEnv)" -Value "-C link-arg=--target=$($target.ClangTarget)"
+
+    Write-Host "Rust bridge ABI: $Abi"
+    Write-Host "Rust target: $($target.RustTarget)"
+    Write-Host "Rust linker: $clang"
+    Write-Host "Rust clang target: $($target.ClangTarget)"
+
+    & cargo build -p pynative_android_bridge --target $target.RustTarget --release
+    if ($LASTEXITCODE -ne 0) { throw "cargo build for Android Rust bridge failed" }
+
+    $sourceLib = Join-Path $RepoRoot "target\$($target.RustTarget)\release\libpynative_android_bridge.so"
+    if (-not (Test-Path -LiteralPath $sourceLib)) {
+        throw "Android Rust bridge library not found: $sourceLib"
+    }
+
+    $abiLibRoot = Join-Path $BuildRoot "native\lib\$Abi"
+    New-Item -ItemType Directory -Path $abiLibRoot -Force | Out-Null
+    Copy-Item -LiteralPath $sourceLib -Destination (Join-Path $abiLibRoot "libpynative_android_bridge.so") -Force
+
+    return (Join-Path $BuildRoot "native")
 }
 
 function Get-SpecValue($Spec, $Name, $Default) {
@@ -244,7 +321,7 @@ foreach ($tool in @($Aapt2, $D8, $Zipalign, $Apksigner, $AndroidJar, $Javac, $Ja
 }
 
 Remove-Item -LiteralPath $BuildRoot -Recurse -Force -ErrorAction SilentlyContinue
-New-Item -ItemType Directory -Path $GeneratedRoot, $GeneratedJavaRoot, $CompiledRes, $ClassesRoot, $DexRoot | Out-Null
+New-Item -ItemType Directory -Path $GeneratedRoot, $GeneratedJavaRoot, $CompiledRes, $ClassesRoot, $DexRoot, $NativeRoot | Out-Null
 Copy-Item -LiteralPath $AndroidJar -Destination $LocalAndroidJar -Force
 $GeneratedAppSource = Join-Path $GeneratedJavaRoot "com\pynative\experiment\GeneratedApp.java"
 Write-GeneratedAppSource $AppSpec $GeneratedAppSource
@@ -253,8 +330,13 @@ Write-Host "Android SDK: $AndroidSdk"
 Write-Host "Build tools: $BuildTools"
 Write-Host "Platform: $Platform"
 Write-Host "Java: $JavaHome"
+Write-Host "Android ABI: $AndroidAbi"
 if ($AppSpec) {
     Write-Host "App spec: $AppSpec"
+}
+
+if (-not $SkipRustBridge) {
+    $RustNativeRoot = Build-RustBridge $RepoRoot $AndroidSdk $BuildRoot $AndroidAbi
 }
 
 & $Aapt2 compile --dir (Join-Path $ProjectRoot "res") -o $CompiledRes
@@ -275,6 +357,7 @@ if ($LASTEXITCODE -ne 0) { throw "aapt2 link failed" }
 
 $SourceFiles = @(
     Join-Path $ProjectRoot "src\com\pynative\experiment\MainActivity.java"
+    Join-Path $ProjectRoot "src\com\pynative\experiment\PyNativeBridge.java"
     $GeneratedAppSource
 ) + @(Get-ChildItem -Path $GeneratedRoot -Recurse -Filter "*.java" | ForEach-Object { $_.FullName })
 
@@ -299,6 +382,11 @@ if ($LASTEXITCODE -ne 0) { throw "d8 failed" }
 
 & $Jar uf $UnsignedApk -C $DexRoot classes.dex
 if ($LASTEXITCODE -ne 0) { throw "adding classes.dex failed" }
+
+if (-not $SkipRustBridge) {
+    & $Jar uf $UnsignedApk -C $RustNativeRoot lib
+    if ($LASTEXITCODE -ne 0) { throw "adding Rust bridge library failed" }
+}
 
 & $Zipalign -f 4 $UnsignedApk $AlignedApk
 if ($LASTEXITCODE -ne 0) { throw "zipalign failed" }

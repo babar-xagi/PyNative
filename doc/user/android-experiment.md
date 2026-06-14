@@ -22,6 +22,13 @@ Or use the dedicated build command:
 uv run pynative build apk examples\counter\app.py
 ```
 
+The default ABI is `arm64-v8a`, which is the right choice for most real phones. For an x86_64 emulator:
+
+```powershell
+uv run pynative build apk examples\counter\app.py --android-abi x86_64
+uv run pynative run android examples\counter\app.py --android-abi x86_64
+```
+
 Output:
 
 ```text
@@ -46,7 +53,7 @@ com.pynative.experiment/.MainActivity
 
 - Uses a Java Activity for the experiment.
 - Does not embed Python yet.
-- Does not use the Rust runtime on Android yet.
+- Loads a Rust JNI bridge on Android and sends button events into Rust.
 - Renders a build-time export of the Python widget tree, not a live Python runtime.
 - Android button taps update local Android state, but Python callbacks do not run on-device yet.
 

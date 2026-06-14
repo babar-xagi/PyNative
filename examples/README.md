@@ -24,6 +24,12 @@ Build an APK from any example:
 uv run pynative build apk examples\counter\app.py
 ```
 
+The default ABI is `arm64-v8a` for real phones. For an x86_64 emulator:
+
+```powershell
+uv run pynative build apk examples\counter\app.py --android-abi x86_64
+```
+
 Install and launch when a device or emulator is connected:
 
 ```powershell

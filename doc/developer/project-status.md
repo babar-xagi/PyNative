@@ -1,12 +1,12 @@
 # Project Status
 
-Snapshot date: 2026-06-10
+Snapshot date: 2026-06-13
 
 ## Current Phase
 
 PyNative UI is in Phase 1 Desktop MVP, with Phase 2 Android exploration started.
 
-The project now has a working Python package, Rust/PyO3 bridge, basic Windows native renderer, CLI workflow, examples, tests, documentation, and a build-only Android APK experiment.
+The project now has a working Python package, Rust/PyO3 bridge, basic Windows native renderer, CLI workflow, examples, tests, documentation, style support, and an Android APK experiment with a Rust JNI bridge.
 
 ## Done
 
@@ -46,6 +46,9 @@ The project now has a working Python package, Rust/PyO3 bridge, basic Windows na
 - Added `pynative build apk`.
 - Added install/launch flow for connected devices or emulators.
 - Added generated Android screen metadata and native button state handling.
+- Added a Rust JNI bridge crate for Android.
+- Packaged `libpynative_android_bridge.so` into Android APK builds.
+- Forwarded Android button taps into Rust and reported native event counts.
 - Documented current Android requirements and limitations.
 
 ### Repository
@@ -66,7 +69,7 @@ The project now has a working Python package, Rust/PyO3 bridge, basic Windows na
 ### Phase 2 Android MVP
 
 - Replace the generated Java experiment with a proper Android runtime shell.
-- Add Rust JNI entry points and decide what logic belongs in Rust versus Python.
+- Decide what Android event/runtime logic belongs in Rust versus Python now that Android can call Rust through JNI.
 - Choose and document the Python-on-Android runtime approach.
 - Move from build-time widget export to a live Python widget tree on Android.
 - Render basic `Text`, `Button`, and `Input` controls on Android.
@@ -90,8 +93,8 @@ The project now has a working Python package, Rust/PyO3 bridge, basic Windows na
 1. Finish Phase 1 desktop polish enough for a reliable counter and login demo.
 2. Add image rendering and basic configuration loading.
 3. Add tests around event/state behavior.
-4. Turn the Android experiment into a small Rust/JNI proof.
-5. Decide and prototype the Python runtime strategy on Android.
+4. Decide and prototype the Python runtime strategy on Android.
+5. Move Android from build-time widget export to live runtime state updates.
 6. Add packaging and CI once the desktop and Android paths are stable enough to repeat.
 
 ## Active Risks

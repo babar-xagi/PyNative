@@ -26,6 +26,12 @@ def main() -> None:
     )
     apk.add_argument("--install", action="store_true", help="Install the APK after building")
     apk.add_argument("--launch", action="store_true", help="Install and launch the APK after building")
+    apk.add_argument(
+        "--android-abi",
+        choices=["arm64-v8a", "x86_64"],
+        default="arm64-v8a",
+        help="Android native ABI to package. Use arm64-v8a for phones or x86_64 for emulators.",
+    )
 
     run_project = subcommands.add_parser("run", help="Run a PyNative app")
     run_project.add_argument("platform", choices=["desktop", "android"], help="Target platform")
@@ -43,6 +49,12 @@ def main() -> None:
         "--build-only",
         action="store_true",
         help="For Android, build the APK without installing or launching it",
+    )
+    run_project.add_argument(
+        "--android-abi",
+        choices=["arm64-v8a", "x86_64"],
+        default="arm64-v8a",
+        help="For Android, package this native ABI. Use arm64-v8a for phones or x86_64 for emulators.",
     )
     subcommands.add_parser("doctor", help="Check the local PyNative UI development setup")
     hello_window = subcommands.add_parser(
@@ -86,6 +98,7 @@ def main() -> None:
                 target=Path(args.target) if args.target else None,
                 install=args.install or args.launch,
                 launch=args.launch,
+                android_abi=args.android_abi,
             )
             raise SystemExit(result.returncode)
     elif args.command == "run":
@@ -98,6 +111,7 @@ def main() -> None:
                 run_android_experiment(
                     Path(args.target) if args.target else None,
                     build_only=args.build_only,
+                    android_abi=args.android_abi,
                 )
             )
     elif args.command == "doctor":

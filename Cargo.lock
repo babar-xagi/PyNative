@@ -172,6 +172,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "pynative_android_bridge"
+version = "0.1.0"
+
+[[package]]
 name = "pynative_cli"
 version = "0.1.0"
 dependencies = [

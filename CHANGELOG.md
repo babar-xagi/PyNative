@@ -31,6 +31,10 @@ All notable project changes are tracked here so each phase has a clear history.
 - Added the `Style` design API with color, background color, font size, font weight, width, height, padding, margin, gap, and alignment fields.
 - Added first-pass Windows and Android style rendering support.
 - Added a design showcase example and user style guide.
+- Added a Rust Android JNI bridge crate.
+- Packaged the Android Rust bridge into APK builds as `libpynative_android_bridge.so`.
+- Added `--android-abi` for phone (`arm64-v8a`) and emulator (`x86_64`) APK builds.
+- Forwarded Android button taps into Rust and exposed native bridge event counts in the Android UI/logs.
 
 ## 0.1.0 - 2026-06-10
 
